@@ -185,7 +185,6 @@ function K2FlowChart(props: WithContextPlacementProps) {
     
 
     console.log("NodeDragStop", node.id, node.position.x.toString(), node.position.y.toString());
-    control.nodeDragStop(node.id, node.position.x.toString(), node.position.y.toString());
   }
 
   function handleClick(e: React.MouseEvent) {
