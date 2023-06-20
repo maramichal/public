@@ -1,0 +1,3333 @@
+const defineHtmlEditor = {
+    js: {
+        equa: /(\b=\b)/g,
+        quot: /(`|'|"|&#39;|&#34;)/g,
+        comm: /((\/\*([^*]|[\r\n]|(\*+([^*/]|[\r\n])))*\*+\/)|(\/\/.*))/g,
+        logi: /(%=|%|\-|\+|\*|&amp;{1,2}|\|{1,2}|&lt;=|&gt;=|&lt;|&gt;|!={1,2}|={2,3})/g,
+        numb: /(\d+(\.\d+)?(e\d+)?)/g,
+        func: /(?<=^|\s*)(async|console|alert|Math|Object|Array|String|class(?!\s*\=)|function|(?<=\.)\D\w*)(?=\b)/g,
+        decl: /(?<=^|\s*)(var|let|const)/g, // Declarations
+        pare: /(\(|\))/g,
+        squa: /(\[|\])/g,
+        curl: /(\{|\})/g,
+    },
+    html: { 
+        tags: /(?<=&lt;(?:\/)?)(\w+)(?=\s|\&gt;)/g,
+        angl: /(&lt;\/?|&gt;)/g,
+        attr: /((?<=<i class=html_tags>\w+<\/i>)[^<]+)/g,
+    }
+};
+
+var needSave = false,
+    isChangeMove = false,
+    allowedEditable = true,
+    controler,
+    savedRange,
+    elemLinkEdit,
+    elemTableTdEdit = {},
+    timerError = null,
+    pageConts,
+    startEditingInK2 = false,
+    editingInK2 = location.search.substring(1).split('&').indexOf('k2integrated=1') != -1 ? true : false,
+    clickHistory,
+    clickEHistory;
+
+console.log('editingInK2 = ' + editingInK2);
+//document.querySelector('body').innerHTML = location.href;
+// odstanit remove()
+// kontrola funkčnosti bez Jquery
+
+function checkSize(img) {
+    var loadingScreen = document.getElementById('loading-screen');
+    loadingScreen.classList.remove('flex');
+    if (img.naturalWidth < 20 || img.naturalHeight < 20) {
+        error("Obrázek je příliš malý");
+        img.remove();
+        return;
+    }
+    //check if image is bigger than 2 MB
+    if (img.naturalWidth * img.naturalHeight > (2 * 1024 * 1024)) {
+        error("Obrázek je příliš velký");
+        img.remove();
+        return;
+    }
+    document.getElementById('img_url_input').value = '';
+    restoreSelection();
+    var popup = document.querySelector('.popup_edit_container.active');
+    popup.querySelector('.btn_pop').click();
+
+
+}
+function removeThis(img) {
+    var loadingScreen = document.getElementById('loading-screen');
+    loadingScreen.classList.remove('flex');
+    error("Obrázek se nepodařilo načíst");
+    img.remove();
+}
+function addGalleryItem() {
+    var url = document.getElementById('img_url_input').value;
+    var loadingScreen = document.getElementById('loading-screen');
+    // Show the loading screen
+    loadingScreen.classList.add('flex');
+    restoreSelection();
+    // Insert the image
+    formatDoc("insertHTML", '<img loading="lazy" onload="checkSize(this)" onerror="removeThis(this)" src="' + url + '">');
+}
+
+
+
+
+
+const inputElement = document.getElementById('img_url_input');
+
+// Add an event listener for the "keydown" event
+inputElement.addEventListener('keydown', (event) => {
+  // Check if the "Enter" key was pressed (key code 13)
+  if (event.key === 'Enter') {
+    // Call a function to do something
+    addGalleryItem();
+  }
+});
+
+  
+  
+  
+  
+
+
+
+function disableEditInK2() {
+    document.body.classList.remove('edit_in_k2_start')
+    document.querySelector('.editable_main_set').classList.add('not_visible');
+    //document.querySelector('.container_edit_for_k2').classList.remove('not_visible');
+    var items = document.querySelectorAll('.k2editableContent');
+    itemsLength = items.length;
+    for (i = 0; i < itemsLength; i++) {
+        items[i].classList.add('notEditable');
+        items[i].contentEditable = false;
+    }
+    //location.reload();
+}
+
+function startEditing() { 
+    //log.value = log.value + 'test <br>' 
+    controler = document.querySelector('.editable_control');
+    pageConts = document.querySelector(".k2pageContainer");
+    if (editingInK2) {
+        var saveHtmlBeforeEdit = document.body.innerHTML;
+        var cancelEdit = document.querySelector('.cancel_edit')
+
+        cancelEdit.addEventListener('click', function (e) {
+            e.preventDefault();
+            if (needSave) {
+                //alert('neodcházej nemáš uloženo');
+                if (window.confirm("Provedené změny nebudou uloženy.")) {
+                    console.log('neukladat');
+                    location.reload();
+                    //document.body.innerHTML = saveHtmlBeforeEdit;
+                    //disableEdit();
+                }
+            } else {
+                disableEditInK2();
+            }
+        })
+    }
+    /*   if (cancelEdit) {
+           var href = location.origin + location.pathname;
+           cancelEdit.setAttribute('href', href);
+       }*/
+     document.querySelectorAll('.k2editableContent').forEach(function (el) {
+        el.querySelectorAll('.editable_video_content').forEach(function (t) {
+//            iframe = t.querySelector('iframe');
+//            iframe.src = iframe.dataset.src;
+            cookieInfo = t.querySelector('.cookie_info_text');
+
+            if (cookieInfo) {
+                cookieInfo.remove();
+            }
+
+        }); 
+    });
+
+    controler.addEventListener('mousedown', function (e) {
+        e.preventDefault();
+    });
+
+    controler.querySelectorAll('input').forEach(function (el) {
+
+        el.addEventListener('mousedown', function (e) {
+            e.stopPropagation();
+        })
+    });
+
+    document.querySelectorAll(".html_wrap").forEach(function (el) {
+        if (el.hasAttribute("k2editortype")) {
+            if (el.getAttribute("k2editortype") == "code") {
+                toCodeEditor(el);
+            } else if (el.getAttribute("k2editortype") == "visual") {
+
+            } else el.setAttribute("k2editortype", "visual");
+
+        } else el.setAttribute("k2editortype", "visual");
+    });
+
+
+    editableStart();
+
+    /*pridani/odstraneni/velikost/pozice u obrazku a videa*/
+    multimedia();
+
+    layout();
+
+    /*prace s odkazem*/
+    linkSet();
+
+    hashSet();
+
+    // editace tabulky
+    q('.btn_edit_table', 'click', function () {
+        var type = this.getAttribute('data-type'),
+            tdActive = elemTableTdEdit.element,
+            colActive = elemTableTdEdit.activeX,
+            rowActive = elemTableTdEdit.activeY,
+            table = tdActive.closest('table'),
+            lengthCol = elemTableTdEdit.lengthCol,
+            lengthRow = elemTableTdEdit.lengthRow,
+            tdGenerate = "";
+
+
+        if (type === "removeTable") {
+            selectElement(table);
+            formatDoc('delete', false);
+            restoreSelection();
+        } else if (type === "addRow") {
+            selectElement(table);
+            for (i = 0; i < lengthCol; i++) {
+                tdGenerate = tdGenerate + "<td></td>";
+            }
+            table.querySelectorAll('tr')[rowActive].insertAdjacentHTML('afterend', "<tr>" + tdGenerate + "</tr>");
+            table = table.outerHTML;
+            formatDoc('insertHtml', table);
+        } else if (type === "removeRow") {
+            selectElement(table);
+            tdActive.parentElement.remove();
+            table = table.outerHTML;
+            formatDoc('insertHtml', table);
+        } else if (type === "addCol") {
+            var rowsTable = table.querySelectorAll('tr');
+            for (i = 0; i < lengthRow; i++) {
+                typeNode = rowsTable[i].firstChild.nodeName;
+                createElement = document.createElement(typeNode);
+                createElement = createElement.outerHTML;
+                rowsTable[i].querySelectorAll(typeNode)[colActive].insertAdjacentHTML('afterend', createElement);
+            }
+            selectElement(table);
+            table = table.outerHTML;
+            formatDoc('insertHtml', table);
+        } else if (type === "removeCol") {
+            var rowsTable = table.querySelectorAll('tr');
+            for (i = 0; i < lengthRow; i++) {
+                typeNode = rowsTable[i].firstChild.nodeName;
+                if (rowsTable[i].querySelectorAll(typeNode)[colActive]) {
+                    rowsTable[i].querySelectorAll(typeNode)[colActive].remove();
+                }
+            }
+            selectElement(table);
+            table = table.outerHTML;
+            formatDoc('insertHtml', table);
+        } else if (type === "resizeTable") {
+            resizeTable(table);
+
+            selectElement(table);
+            table = table.outerHTML;
+            formatDoc('insertHtml', table);
+        }
+        restoreSelection();
+        document.querySelector('.k2editableContent.active').click();
+    });
+
+    q('.btn_edit_layout', 'click', function () {
+        var type = this.getAttribute("data-type");
+
+        if (type == "removeLayout") {
+            if (document.querySelector(".k2editableContent.active .layoutContent.active")) {
+                document.querySelector(".k2editableContent.active .layoutContent.active").outerHTML = "";
+                document.querySelector(".edit_layout").classList.remove("active");
+                isNeedSave();
+                document.querySelector(".k2editableContent.active").click();
+            } else error("Není co vymazat");
+
+        } else if (type == "addLayout") {
+            if (document.querySelector(".k2editableContent.active .layoutContent.active")) {
+                if (document.querySelector(".k2editableContent.active .layoutContent.active").hasAttribute("layout-id")) {
+                    var layout = document.querySelector(".k2editableContent.active .layoutContent.active");
+                    var id = layout.getAttribute("layout-id");
+                    var content = document.querySelector('.layout_grid_edit .layoutContent[layout-id="' + id + '"]');
+
+                    layout.outerHTML = layout.outerHTML + content.outerHTML + "<br>";
+                    isNeedSave();
+                } else error("Chybí údaje ke kopírování");
+            } else error("Není co vymazat");
+        } else if (type == "upLayout") {
+            if (document.querySelector(".k2editableContent.active .layoutContent.active")) {
+                var prev = document.querySelector(".k2editableContent.active .layoutContent.active").previousElementSibling;
+                if (prev != null) {
+                    var el = prev;
+                    while ((el.lastElementChild != null) && !(el.classList.contains("layoutContent") || el.tagName.toLowerCase() == "table" || el.classList.contains("k2StyleEditor"))) {
+                        el = el.lastElementChild;
+                    }
+                    el.before(document.querySelector(".k2editableContent.active .layoutContent.active"));
+                } else {
+                    var el = document.querySelector(".k2editableContent.active .layoutContent.active").parentElement.previousElementSibling,
+                        elprev = document.querySelector(".k2editableContent.active .layoutContent.active").parentElement;
+                    while (el == null) {
+                        if (!elprev.classList.contains("k2editableContent")) {
+                            el = elprev.parentElement.previousElementSibling;
+                            elprev = elprev.parentElement;
+                        } else el = elprev;
+
+                    }
+                    if (el.classList.contains("k2editableContent")) {
+                        el = el.firstElementChild;
+                    } else {
+                        while ((el.lastElementChild != null) && !(el.classList.contains("layoutContent") || el.tagName.toLowerCase() == "table" || el.classList.contains("k2StyleEditor"))) {
+                            el = el.lastElementChild;
+                        }
+                    }
+                    if ((prev == null && elprev.classList.contains("k2editableContent"))) {
+                        el = document.querySelector(".k2editableContent.active");
+                        el.prepend(document.querySelector(".k2editableContent.active .layoutContent.active"));
+                    } else {
+                        el.before(document.querySelector(".k2editableContent.active .layoutContent.active"));
+                    }
+
+
+                }
+
+                floatElementToElement(document.querySelector(".edit_layout"), document.querySelector(".k2editableContent.active .layoutContent .layout_item.active, .k2editableContent.active .layoutContent .contenteditable.active"));
+                isNeedSave();
+            } else error("Není co vymazat");
+        } else if (type == "downLayout") {
+            if (document.querySelector(".k2editableContent.active .layoutContent.active")) {
+                var next = document.querySelector(".k2editableContent.active .layoutContent.active").nextElementSibling;
+                if (next != null) {
+                    var el = next;
+                    while ((el.firstElementChild != null) && !(el.classList.contains("layoutContent") || el.tagName.toLowerCase() == "table" || el.classList.contains("k2StyleEditor"))) {
+                        el = el.firstElementChild;
+                    }
+                    if (document.querySelector(".k2editableContent.active .layoutContent.active").nextSibling.nodeType == 3)
+                        el.before(document.querySelector(".k2editableContent.active .layoutContent.active"));
+                    else
+                        el.after(document.querySelector(".k2editableContent.active .layoutContent.active"));
+                } else {
+                    var el = document.querySelector(".k2editableContent.active .layoutContent.active").parentElement.nextElementSibling,
+                        elnext = document.querySelector(".k2editableContent.active .layoutContent.active").parentElement;
+                    while (el == null) {
+                        if (!elnext.classList.contains("k2editableContent")) {
+                            el = elnext.parentElement.nextElementSibling;
+                            elnext = elnext.parentElement;
+                        } else el = elnext;
+
+                    }
+                    if (el.classList.contains("k2editableContent")) {
+                        el = el.lastElementChild;
+                    } else {
+                        while ((el.firstElementChild != null) && !(el.classList.contains("layoutContent") || el.tagName.toLowerCase() == "table" || el.classList.contains("k2StyleEditor"))) {
+                            el = el.firstElementChild;
+                        }
+                    }
+                    if ((next == null && elnext.classList.contains("k2editableContent"))) {
+                        el = document.querySelector(".k2editableContent.active");
+                        el.append(document.querySelector(".k2editableContent.active .layoutContent.active"));
+                    } else {
+                        el.after(document.querySelector(".k2editableContent.active .layoutContent.active"));
+                    }
+
+
+                }
+                floatElementToElement(document.querySelector(".edit_layout"), document.querySelector(".k2editableContent.active .layoutContent .layout_item.active, .k2editableContent.active .layoutContent .contenteditable.active"));
+                isNeedSave();
+            } else error("Není co vymazat");
+        }
+    });
+
+
+    // zmena stylu a pozice bloku na strance
+    moveWebContent();
+
+
+    if(!window.webK2){
+        //trigger saving 
+        saving(); 
+    } else { 
+        document.body.classList.add('webK2');
+        window.addEventListener('resize', changeMarginToolbar);
+        document.addEventListener('click', function (e) {
+            var elementClick1 = isElement(e, 'codeEditor_button');
+            var elementClick2 = isElement(e, 'visualEditor_button');
+            if(elementClick1 || elementClick2){
+                changeMarginToolbar();
+            } 
+        });
+        
+        changeMarginToolbar();
+        function changeMarginToolbar(){
+            let margin = document.querySelector('.editable_control').offsetHeight;
+            if(!window.webK2){
+                margin+= 30;
+            } else {
+                margin+= 10;
+            }
+            document.querySelector('.k2editableContent').setAttribute('style', 'margin-top:'+ margin +'px !important');
+        }
+    }
+}
+
+document.addEventListener("DOMContentLoaded", function (event) {
+    var isChrome = /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
+    var isMozilla = navigator.userAgent.toLowerCase().indexOf('firefox') > -1;
+
+
+    if (editingInK2) {
+        document.body.classList.add('editingInK2');
+        /*document.querySelectorAll('a, button, input').forEach(function (t) {
+
+            console.log(!!t.closest('.template_edit_container'));
+            console.log(!!t.closest('.k2editableHtml'));
+            console.log(t);
+            if (!!t.closest('.template_edit_container')) {
+                t.addEventListener('click', function (e) {
+                    console.log(!!this.closest('.k2editableHtml'));
+                    console.log(!startEditingInK2);
+                    console.log(this.nodeName);
+                    if(this.nodeName == "A"){
+                    }
+                        e.preventDefault();
+                    if(!!this.closest('.k2editableHtml') && !startEditingInK2){
+                        e.stopPropagation();
+                    }
+
+                });
+            }
+        });*/
+    }
+
+    //console.log(isChrome || isMozilla && !editingInK2)
+    if ((isChrome || isMozilla) && !editingInK2) {
+        startEditing();
+    } else {
+        if (!editingInK2) {
+            document.querySelector('.editable_main_set').outerHTML = "";
+            var items = document.querySelectorAll('.k2editableContent');
+            itemsLength = items.length;
+            for (i = 0; i < itemsLength; i++) {
+                items[i].classList.remove('k2editableContent')
+            }
+        } else {
+            document.addEventListener('changeEditMode', function (e) {
+                if (e.editMode) {
+                    document.body.classList.add('edit_in_k2_start')
+                    //document.querySelector('.container_edit_for_k2').classList.add('not_visible')
+                    //document.querySelector('.k2editableContent').classList.remove('notEditable')
+                    //document.querySelector('.editable_main_set').classList.remove('not_visible');
+                    var items = document.querySelectorAll('.k2editableContent');
+                    itemsLength = items.length;
+                    for (i = 0; i < itemsLength; i++) { 
+                        //log.value = e.firstLoadData;
+                        if (e.firstLoadData) {
+                            fieldName = checkVariable(items[i].getAttribute('data-k2-segitor'));
+                            items[i].setAttribute('data-k2-field', fieldName);
+                        }
+                        items[i].classList.remove('notEditable');
+                        items[i].contentEditable = true;
+                    }
+                    if (!startEditingInK2) { 
+                        startEditing(); 
+                    }
+                    startEditingInK2 = true;
+                } else {
+                    document.body.classList.remove('edit_in_k2_start') 
+                    document.dispatchEvent(new Event('mousedown'));
+                    var items = document.querySelectorAll('.k2editableContent');
+                    itemsLength = items.length;
+                    for (i = 0; i < itemsLength; i++) {
+                        if (e.firstLoadData) { 
+                            fieldName = checkVariable(items[i].getAttribute('data-k2-segitor'));
+                            items[i].setAttribute('data-k2-field', fieldName);
+                        }
+                        items[i].classList.add('notEditable');
+                        items[i].contentEditable = false;
+                    }
+                    //startEditingInK2 = false;
+                }
+            })
+
+        }
+
+    }
+});
+
+function layout() {
+    var container = document.querySelector('.layout_grid_edit');
+    if (!(typeof editableLayoutsData === 'undefined')) {
+        editableLayoutsData.forEach(importLayouts);
+        console.log(editableLayoutsData);
+    }
+    if (!(typeof specialEditableLayoutsData === 'undefined')) {
+        specialEditableLayoutsData.forEach(importLayouts);
+    }
+
+    function importLayouts(layout) { // Přelouská a vepíše layouty do popupu
+        var content = "";
+        var afterHtml = "";
+        var btnClass = "";
+
+        if (!layout.html) {
+            layout.items.forEach(function (item, n) {
+                content = content + '<div class="layout_item k2StyleEditor ' + item.class + '" data-n="' + n + '" contenteditable="false"><br></div>';
+
+            });
+        } else {
+            var dom = new DOMParser().parseFromString(layout.html, 'text/html').body.firstElementChild;
+            dom.querySelectorAll("[class]").forEach(function (el) {
+                el.classList.add("k2StyleEditor");
+            });
+            if (dom.hasAttribute("class")) dom.classList.add("k2StyleEditor");
+            content = dom.outerHTML;
+            afterHtml = "<div class=' html_text'><div class='box'><div>HTML</div></div></div>";
+            btnClass = "html";
+        }
+
+        if (container) {
+            var itemHtml = '<div class="layout_item_edit "><button title="' + layout.description + '" class="layout_button ' + btnClass + '"><h3>' + layout.title + '</h3><div class="layoutContent k2StyleEditor ' + layout.mainClass + '" layout-id="' + layout.mainClass + '">' + content + '</div>' + afterHtml + '</button></div>'
+            container.innerHTML = container.innerHTML + itemHtml;
+        }
+    }
+
+    var buttons = document.querySelectorAll(".layout_button"); //Posluchač pro klik
+    if (buttons) {
+        buttons.forEach(function (el) {
+            el.addEventListener("click", function (e) {
+                clickLayout(e, el)
+            });
+        });
+    }
+
+    function clickLayout(e, item) { //Při vybrání layoutu k vložení do editoru
+        e.preventDefault();
+        if(!document.querySelector('.k2editableContent.active')) return;
+        var content = item.querySelector(".layoutContent");
+        var isVisual = (document.querySelector('.k2editableContent.active').getAttribute("k2editortype") == "visual") ? true : false;
+        if (isVisual) {
+            var popup = document.querySelector('.popup_edit_container.active');
+            if (document.querySelector('.controler_btn.active')) {
+                document.querySelector('.controler_btn.active').click();
+            }
+            if (popup) {
+                popup.querySelector('.btn_pop').click();
+            }
+
+            var sel = window.getSelection && window.getSelection();
+            //Pokud se kurzor nachází v layoutu, přesune ho na konec k2editoru a zneaktivní layouty
+            if (sel && sel.rangeCount > 0) {
+                var el = sel.getRangeAt(0).commonAncestorContainer;
+                if (!(el && el.nodeType === Node.ELEMENT_NODE)) el = window.getSelection().getRangeAt(0).commonAncestorContainer.parentNode;
+                if (el.closest(".layoutContent")) {
+                    el.closest(".layoutContent").outerHTML = el.closest(".layoutContent").outerHTML + content.outerHTML + "<br>";
+                } else {
+                    formatDoc('insertHTML', content.outerHTML + "<br>");
+                }
+            } else {
+                document.querySelector('.k2editableContent.active').innerHTML = document.querySelector('.k2editableContent.active').innerHTML + content.outerHTML + "<br>";
+            }
+
+
+            isNeedSave();
+        }
+    }
+
+
+}
+
+function setEndOfContenteditable(contentEditableElement) {
+    var range, selection;
+    if (document.createRange) //Firefox, Chrome, Opera, Safari, IE 9+
+    {
+        range = document.createRange(); //Create a range (a range is a like the selection but invisible)
+        range.selectNodeContents(contentEditableElement); //Select the entire contents of the element with the range
+        range.collapse(false); //collapse the range to the end point. false means collapse to end rather than the start
+        selection = window.getSelection(); //get the selection object (allows you to change selection)
+        selection.removeAllRanges(); //remove any selections already made
+        selection.addRange(range); //make the range you have just created the visible selection
+    } else if (document.selection) //IE 8 and lower
+    {
+        range = document.body.createTextRange(); //Create a range (a range is a like the selection but invisible)
+        range.moveToElementText(contentEditableElement); //Select the entire contents of the element with the range
+        range.collapse(false); //collapse the range to the end point. false means collapse to end rather than the start
+        range.select(); //Select the range (make it the visible selection
+    }
+}
+
+
+function multimedia() {
+    // přidaní videa
+    q('.btn_video', 'click', function () {
+        var videoUrl = document.querySelector('#videoLink').value,
+            urlDecode = videoUrl.match(/(http:|https:|)\/\/(player.|www.)?(vimeo\.com|youtu(be\.com|\.be|be\.com))\/(video\/|embed\/|watch\?v=|v\/)?([A-Za-z0-9._%-]*)(\&\S+)?/),
+            urlHash,
+            web;
+
+        if (urlDecode !== null) {
+            urlHash = urlDecode[6];
+            web = urlDecode[3];
+
+
+            if ((web == "youtube.com") || (web == "youtu.be")) {
+                var videoHtml =
+                    '<div class="k2StyleEditor editable_video_content_cookies video_rect youtube_load" data-hash="' + videoUrl + '" data-img="" style="background: url(\'https://img.youtube.com/vi/' + urlHash + '/hqdefault.jpg\')">' +
+                    '<span></span>' +
+                    '</div>';
+
+
+                restoreSelection();
+                getSelectionParentElement().innerHTML = videoHtml;
+
+
+                //formatDoc('insertHtml', videoHtml);
+
+            } else if (web == "vimeo.com") {
+                var videoHtml = 
+                '<div class="k2StyleEditor editable_video_content_cookies video_rect youtube_load" data-hash="' + videoUrl + '" data-img="">' +
+                '<span></span>' +
+                '</div>';
+                
+                restoreSelection();
+                getSelectionParentElement().innerHTML = videoHtml;
+
+
+            } else {
+                error("Chybně vyplněná URL pro vložení videa");
+            }
+        } else {
+            error("Chybně vyplněná URL pro vložení videa");
+        }
+
+        if (document.querySelector('.controler_btn.active')) {
+            document.querySelector('.controler_btn.active').click();
+        }
+
+    });
+
+    // změna velikosti obrázku a videa
+    q('.btn_media_resize', 'click', function () {
+        var elementImg = document.querySelector('.k2editableContent img.active') || document.querySelector('.k2editableContent .editable_video_content.active');
+
+        if (elementImg) {
+            restoreSelection();
+            var value = this.getAttribute('data-value');
+            elementImg.style.width = value + '%';
+            elementImg.style.height = 'auto';
+            elementImg.click();
+        }
+    });
+
+    // změna velikosti obrázku a videa
+    q('.btn_media_remove', 'click', function () {
+        var elementImg = document.querySelector('.k2editableContent img.active') || document.querySelector('.k2editableContent .editable_video_content.active');
+
+        /*selectElement(elementImg);
+        formatDoc('delete', null);*/
+        elementImg.outerHTML = "";
+        /*saveSelection();*/
+        if (document.querySelector('.image_set_edit.active')) {
+            document.querySelector('.image_set_edit').classList.remove('active');
+        }
+        restoreSelection();
+    });
+
+    // změna margin hodnoty
+    q('input[name="marginTop"]', 'input', function (e) {
+        var elementImg = document.querySelector('.k2editableContent img.active') || document.querySelector('.k2editableContent .editable_video_content.active');
+        if (e.target.value > 999) {
+            e.target.value = 999;
+        }
+        elementImg.style.marginTop = e.target.value + "px";
+        imageVideoSetResize(elementImg);
+        isNeedSave(document.querySelector(".k2editableContent.active"));
+    });
+    q('input[name="marginBottom"]', 'input', function (e) {
+        var elementImg = document.querySelector('.k2editableContent img.active') || document.querySelector('.k2editableContent .editable_video_content.active');
+        if (e.target.value > 999) {
+            e.target.value = 999;
+        }
+        elementImg.style.marginBottom = e.target.value + "px";
+        imageVideoSetResize(elementImg);
+        isNeedSave(document.querySelector(".k2editableContent.active"));
+    });
+    q('input[name="marginLeft"]', 'input', function (e) {
+        var elementImg = document.querySelector('.k2editableContent img.active') || document.querySelector('.k2editableContent .editable_video_content.active');
+        if (e.target.value > 999) {
+            e.target.value = 999;
+        }
+        elementImg.style.marginLeft = e.target.value + "px";
+        imageVideoSetResize(elementImg);
+        isNeedSave(document.querySelector(".k2editableContent.active"));
+    });
+    q('input[name="marginRight"]', 'input', function (e) {
+        var elementImg = document.querySelector('.k2editableContent img.active') || document.querySelector('.k2editableContent .editable_video_content.active');
+        if (e.target.value > 999) {
+            e.target.value = 999;
+        }
+        elementImg.style.marginRight = e.target.value + "px";
+        imageVideoSetResize(elementImg);
+        isNeedSave(document.querySelector(".k2editableContent.active"));
+    });
+
+    // změna padding hodnoty layoutu
+    q('.edit_layout input', 'input', function (e) {
+        var elementImg = document.querySelector('.k2editableContent.active .layoutContent.active .layout_item.active, .k2editableContent.active .layoutContent.active .contenteditable.active')
+
+        if (this.getAttribute("name") == "paddingLeft") {
+            if (e.target.value > 999) {
+                e.target.value = 999;
+            }
+            elementImg.style.paddingLeft = e.target.value + "px";
+        }
+        if (this.getAttribute("name") == "paddingTop") {
+            if (e.target.value > 999) {
+                e.target.value = 999;
+            }
+            elementImg.style.paddingTop = e.target.value + "px";
+        }
+        if (this.getAttribute("name") == "paddingRight") {
+            if (e.target.value > 999) {
+                e.target.value = 999;
+            }
+            elementImg.style.paddingRight = e.target.value + "px";
+        }
+        if (this.getAttribute("name") == "paddingBottom") {
+            if (e.target.value > 999) {
+                e.target.value = 999;
+            }
+            elementImg.style.paddingBottom = e.target.value + "px";
+        }
+
+        isNeedSave(document.querySelector(".k2editableContent.active"));
+    });
+
+
+    // změna padding hodnoty layoutu
+    q('.edit_layout input', 'input', function (e) {
+        var elementImg = document.querySelector('.k2editableContent.active .layoutContent.active .layout_item.active, .k2editableContent.active .layoutContent.active .contenteditable.active')
+
+        if (this.getAttribute("name") == "paddingLeft") {
+            if (e.target.value > 999) {
+                e.target.value = 999;
+            }
+            elementImg.style.paddingLeft = e.target.value + "px";
+        }
+        if (this.getAttribute("name") == "paddingTop") {
+            if (e.target.value > 999) {
+                e.target.value = 999;
+            }
+            elementImg.style.paddingTop = e.target.value + "px";
+        }
+        if (this.getAttribute("name") == "paddingRight") {
+            if (e.target.value > 999) {
+                e.target.value = 999;
+            }
+            elementImg.style.paddingRight = e.target.value + "px";
+        }
+        if (this.getAttribute("name") == "paddingBottom") {
+            if (e.target.value > 999) {
+                e.target.value = 999;
+            }
+            elementImg.style.paddingBottom = e.target.value + "px";
+        }
+
+        isNeedSave(document.querySelector(".k2editableContent.active"));
+    });
+
+
+    // obtékání textu obrázku a videa
+    q('.btn_media_float_edit', 'click', function () {
+        var floatTyp = this.getAttribute('data-float'),
+            imgActive = document.querySelector('.k2editableContent.active img.active') || document.querySelector('.k2editableContent.active .editable_video_content.active'),
+            parentImg = imgActive.parentNode,
+            imgClone = imgActive;
+
+        if (!parentImg.classList.contains('k2editableContent')) {
+            parentImg.style.overflow = "hidden";
+        }
+
+        //EDIT:: parent overflow: hidden všechno?
+
+        imgClone.style.float = floatTyp;
+
+        if (floatTyp === "none") {
+            imgClone.style.marginLeft = '0px';
+            imgClone.style.marginRight = '0px';
+            imgClone.style.marginTop = '0px';
+            imgClone.style.marginBottom = '0px';
+            imgClone.style.position = 'relative';
+            imgClone.style.zIndex = null;
+        } else if (floatTyp === "left") {
+            imgClone.style.marginLeft = '0px';
+            imgClone.style.marginRight = '20px';
+            imgClone.style.marginTop = '20px';
+            imgClone.style.marginBottom = '20px';
+            imgClone.style.position = 'relative';
+            imgClone.style.zIndex = '1';
+        } else if (floatTyp === "right") {
+            imgClone.style.marginLeft = '20px';
+            imgClone.style.marginRight = '0px';
+            imgClone.style.marginTop = '20px';
+            imgClone.style.marginBottom = '20px';
+            imgClone.style.position = 'relative';
+            imgClone.style.zIndex = '1';
+        } else if (floatTyp === "center") {
+            imgClone.style.margin = '0 auto';
+            imgClone.style.float = '';
+            imgClone.style.display = 'block';
+            imgClone.style.position = 'relative';
+            imgClone.style.zIndex = '1';
+        }
+
+        /*   selectElement(imgActive);
+           formatDoc('delete', null);
+
+           if (imgActive) {
+               imgActive.outerHTML = "";
+           }
+           saveSelection();
+           formatDoc('insertHtml', imgClone.outerHTML);
+           restoreSelection();*/
+        /*document.querySelector('.k2editableContent.active').click();*/
+
+        if (document.querySelector('.image_set_edit.active')) {
+            document.querySelector('.image_set_edit').classList.remove('active');
+        }
+    });
+
+    // zmena velikosti obrázku a videa
+    imageVideoResize();
+
+}
+
+function linkSet() {
+
+    // mazaní odkazu z editované části
+    q('.btn_link_remove', 'click', function () {
+        if (elemLinkEdit) {
+            selectElement(elemLinkEdit);
+            saveSelection();
+            restoreSelection();
+            formatDoc('insertHTML', '<span>' + elemLinkEdit.innerText + '</span>');
+            restoreSelection();
+            if (document.querySelector('.editable_link.active')) {
+                document.querySelector('.editable_link.active').classList.remove('active');
+            }
+        }
+    });
+
+    // editace odkazu z editované části
+    q('.btn_link_edit', 'click', function () {
+        console.log(elemLinkEdit)
+        if (elemLinkEdit) {
+            selectElement(elemLinkEdit);
+            saveSelection();
+            restoreSelection();
+            var sLnk = document.querySelector('#linkInputEdit').value,
+                linkTitle = document.querySelector('#linkTitleEdit').value,
+                newCart = document.querySelector('#linkNewCartEdit').checked,
+                createButton = document.querySelector('#linkNewButtonEdit').checked,
+                sText = document.getSelection(),
+                imgInLink = elemLinkEdit.querySelector('img'),
+                expression1 = /((?:https?\:\/\/|www\.)(?:[-a-z0-9]+\.)*[-a-z0-9]+.*)/i,
+                regex1 = new RegExp(expression1),
+                expression2 = /^\/([^?\/]+)/i,
+                regex2 = new RegExp(expression2);
+            expression3 = /(?![.*])#\S+/i,
+                regex3 = new RegExp(expression3);
+
+            if (sLnk.match(regex1) || sLnk.match(regex2)) {
+                classButton = createButton ? 'class="btn btn_normal k2StyleEditor"' : '';
+                console.log(elemLinkEdit);
+                if (imgInLink) {
+                    htmlImg = imgInLink.outerHTML;
+                    elemLinkEdit.remove();
+                    if (newCart) {
+                        formatDoc('insertHTML', '<a href="' + sLnk + '" title="' + linkTitle + '" target="_blank">' + htmlImg + '</a>');
+                    } else {
+                        formatDoc('insertHTML', '<a href="' + sLnk + '" title="' + linkTitle + '">' + htmlImg + '</a>');
+                    }
+                } else if (quantitySelection()) {
+                    if (newCart) {
+                        formatDoc('insertHTML', '<a href="' + sLnk + '" ' + classButton + ' title="' + linkTitle + '" target="_blank">' + sText + '</a>');
+                    } else {
+                        formatDoc('insertHTML', '<a href="' + sLnk + '" ' + classButton + '" title="' + linkTitle + '">' + sText + '</a>');
+                    }
+                } else {
+                    error("Vyberte prosím text");
+                }
+                if (document.querySelector('.editable_link.active')) {
+                    document.querySelector('.editable_link.active').classList.remove('active');
+                }
+            } else if (sLnk.match(regex3)) {
+                classButton = createButton ? 'class="btn btn_normal js_favorite k2StyleEditor"' : 'class="js_favorite k2StyleEditor"';
+                if (imgInLink) {
+                    htmlImg = imgInLink.outerHTML;
+                    elemLinkEdit.remove();
+                    if (newCart) {
+                        formatDoc('insertHTML', '<a data-selector="' + sLnk + '" href="' + sLnk + '" title="' + linkTitle + '" class="js_favorite k2StyleEditor" target="_blank">' + htmlImg + '</a>');
+                    } else {
+                        formatDoc('insertHTML', '<a data-selector="' + sLnk + '" href="' + sLnk + '" title="' + linkTitle + '" class="js_favorite k2StyleEditor">' + htmlImg + '</a>');
+                    }
+                } else if (quantitySelection()) {
+                    if (newCart) {
+                        formatDoc('insertHTML', '<a data-selector="' + sLnk + '" href="' + sLnk + '" title="' + linkTitle + '" ' + classButton + ' target="_blank">' + sText + '</a>');
+                    } else {
+                        formatDoc('insertHTML', '<a data-selector="' + sLnk + '" href="' + sLnk + '" title="' + linkTitle + '" ' + classButton + '">' + sText + '</a>');
+                    }
+                } else {
+                    error("Vyberte prosím text");
+                }
+                if (document.querySelector('.editable_link.active')) {
+                    document.querySelector('.editable_link.active').classList.remove('active');
+                }
+            } else {
+                error("Chybně vyplněná URL");
+            }
+            restoreSelection();
+        }
+
+
+    });
+
+}
+
+
+function hashSet() {
+
+    // mazaní kotvy z editované části
+    q('.btn_hash_remove', 'click', function () {
+        console.log('click');
+        var id = document.querySelector('.hash_setting.active').parentElement.getAttribute('id');
+        document.querySelector('#' + id).outerHTML = "";
+        if (document.querySelector('.editable_hash.active')) {
+            document.querySelector('.editable_hash.active').classList.remove('active');
+        }
+        isNeedSave(document.querySelector('.k2editableContent.active'));
+    });
+
+    // editace kotvy z editované části
+    q('.btn_hash_edit', 'click', function () {
+        var id = document.querySelector('#HashNameEdit').value;
+        var activeHashEl = document.querySelector('.hash_setting.active').parentElement;
+        var linkHashUrl = document.querySelector('#linkHash')
+
+        activeHashEl.setAttribute('id', id);
+        linkHashUrl.value = location.href.split('?')[0].split('#')[0] + "#" + id;
+    });
+
+}
+
+
+function moveWebContent() {
+
+    // zmena stylu pozice bloku na stránce
+    q('.editable_change_view ', 'click', function () {
+        this.classList.toggle('active');
+        pageConts.classList.toggle('no_view');
+    });
+
+    // zmena pozice bloku na stránce
+    q('.editable_change', 'click', function () {
+        var items = document.querySelectorAll('.k2pageContainer > *'),
+            itemsLength = items.length;
+
+        document.querySelector('html').classList.toggle('disable_editor');
+        this.classList.toggle('active');
+        isChangeMove = this.classList.contains('active');
+
+        if (isChangeMove) {
+
+            for (i = 0; i < itemsLength; i++) {
+                var height = items[i].offsetHeight;
+                items[i].style.height = (height / 2) + "px";
+            }
+
+
+        } else {
+
+            for (i = 0; i < itemsLength; i++) {
+                items[i].style.height = null;
+            }
+
+        }
+
+        pageConts.classList.toggle('change_item_active_edit');
+        document.querySelector('.editable_change_view').classList.toggle('view_active');
+
+
+    });
+
+    // přesouvaní sekcí
+    moveContent();
+
+
+}
+
+function editableStart() {
+    if (pageConts === null) {
+        document.querySelector('.editable_change').style.display = "none";
+    }
+
+
+    // zneaktivnení editované časti a controleru při kliknutí mimo ně
+    document.addEventListener('mousedown', function (event) {
+        var t = (event.target.nodeType == 9 ? document.body : event.target);
+        isCl = true;
+        isImgResize = true;
+        isVideoResize = true;
+        isEditLink = true;
+        isEditTable = true;
+        isEditLayout = true;
+        isAddImg = true;
+        isDateTime = true;
+        isHashSetting = true;
+
+
+        while (true) {
+
+            if (t.classList.contains('k2editableContent') && t.classList.contains('active') || t.classList.contains('editable_control')) {
+                isCl = false;
+                if (t.classList.contains('k2editableDatetime')) {
+                    isDateTime = false;
+                }
+                break;
+            }
+            if (t.classList.contains('editable_link')) {
+                isEditLink = false;
+                isCl = false;
+                break;
+            }
+
+            if (t.classList.contains('edit_table')) {
+                isEditTable = false;
+                isCl = false;
+                break;
+            }
+            if (t.classList.contains('edit_layout')) {
+                isEditLayout = false;
+                isCl = false;
+                break;
+            }
+            if (t.classList.contains('edit_layout')) {
+                isEditLayout = false;
+                isCl = false;
+                break;
+            }
+
+            if (t.classList.contains('editable_hash')) {
+                isHashSetting = false;
+                isCl = false;
+                break;
+            }
+
+            if (t.classList.contains('btn_pop')) {
+                isAddImg = false;
+                isCl = false;
+                break;
+            }
+
+            if (t.classList.contains('editable_datetime')) {
+                isCl = false;
+                isDateTime = false;
+                break;
+            }
+
+
+            if ((t.classList.contains('image_set_edit')) || (t.classList.contains('editable_video_content')) || (t.classList.contains('controler_btn')) || (t.classList.contains('editable_btn') || (t.classList.contains('layout_button')))) {
+                isCl = false;
+                isImgResize = false;
+                break;
+            }
+
+            if (t.parentElement == null) {
+                break;
+            }
+
+            t = t.parentElement;
+
+        }
+        //
+
+        if (isDateTime) {
+
+            if (document.querySelector('.editable_datetime.active')) {
+                document.querySelector('.editable_datetime.active').classList.remove('active');
+            }
+
+        }
+
+
+        if (isCl) {
+            if (document.querySelector('.k2editableContent.active')) {
+                document.querySelector('.k2editableContent.active').classList.remove('active');
+            }
+            if (document.querySelector('.editable_control.active')) {
+                document.querySelector('.editable_control.active').classList.remove('active');
+                document.querySelector('#visibleHash').click();
+            }
+            allowedEditable = true;
+
+        }
+
+        if (isEditLink) {
+            if (document.querySelector('.editable_link.active')) {
+                document.querySelector('.editable_link.active').classList.remove('active');
+            }
+        }
+
+        if (isImgResize) {
+            if (document.querySelector('.k2editableContent img.active')) {
+                document.querySelector('.k2editableContent img.active').removeAttribute('class');
+            }
+
+            if (document.querySelector('.k2editableContent .editable_video_content.active')) {
+                document.querySelector('.k2editableContent .editable_video_content.active').classList.remove('active');
+            }
+
+
+            if (document.querySelector('.image_set_edit.active')) {
+                document.querySelector('.image_set_edit').classList.remove('active');
+            }
+        }
+
+        if (isEditTable) {
+            if (document.querySelector('.edit_table.active')) {
+                document.querySelector('.edit_table.active').classList.remove('active');
+            }
+        }
+        if (isEditLayout) {
+            if (document.querySelector(".edit_layout.active")) {
+                document.querySelector(".edit_layout.active").classList.remove("active");
+            }
+        }
+        if (isEditLayout) {
+            if (document.querySelector(".edit_layout.active")) {
+                document.querySelector(".edit_layout.active").classList.remove("active");
+            }
+        }
+
+
+    }, false);
+
+    q('.k2editableContent', "paste", function (e) {
+        if ((!this.classList.contains('k2editableHtml')) && (!this.classList.contains('k2editableDatetime'))) {
+            var maxLength = this.getAttribute('data-k2-max');
+
+            saveSelection();
+            e.preventDefault();
+            var selectionObject = window.getSelection();
+            var contentText = this.textContent;
+            var sectionStart = selectionObject.anchorOffset;
+            var sectionEnd = selectionObject.extentOffset;
+            var pasteText = (e.originalEvent || e).clipboardData.getData('text/plain').replace(/(\r\n|\n|\r)/gm, "");
+            console.log(pasteText);
+
+            if (sectionStart > sectionEnd) {
+                tempSection = sectionStart;
+                sectionStart = sectionEnd;
+                sectionEnd = tempSection;
+            }
+
+            var splitContentText = contentText.split('');
+            if (sectionStart != sectionEnd) {
+                splitContentText.splice(sectionStart, sectionEnd - sectionStart);
+            }
+
+            splitContentText.splice(sectionStart, 0, pasteText);
+            contentText = splitContentText.join('');
+            contentTextLength = contentText.length;
+
+
+            if (!((maxLength > 0) && (contentTextLength <= maxLength))) {
+                contentText = contentText.substring(0, maxLength);
+                formatDoc("selectAll", true);
+                formatDoc("delete", true);
+                formatDoc("insertText", contentText);
+                setCaretOnlyText(this, maxLength);
+                error("Editovaný text je přílíš dlouhý");
+            } else {
+                restoreSelection();
+                console.log(pasteText);
+                formatDoc("insertText", pasteText);
+            }
+
+        } else if (this.classList.contains('k2editableHtml')) {
+            e.preventDefault();
+            var pasteText = (e.originalEvent || e).clipboardData.getData('text/plain');
+            var pasteHtml = (e.originalEvent || e).clipboardData.getData('text/html');
+
+            if (pasteHtml != "") {
+                var el = document.createElement('html');
+                el.innerHTML = pasteHtml;
+                el.querySelectorAll('body *').forEach(function (item) {
+                    var attributes = item.attributes;
+
+                    attributes = Array.prototype.slice.call(attributes);
+
+                    attributes.forEach(function (attr) {
+                        var element = attr;
+                        if (typeof element == 'object') {
+                            nameAttribute = element.name;
+                            acceptAttribute = ['size', 'color', 'href', 'target'];
+                            if (acceptAttribute.indexOf(nameAttribute) == -1) {
+                                item.removeAttribute(nameAttribute);
+                            }
+                        }
+                    });
+
+                    var nameNode = item.nodeName,
+                        textContent = item.textContent.trim(),
+                        acceptNode = ['font', 'p', 'a', 'br', 'hr', 'ol', 'ul', 'li', 'strong', 'em', 'b', 'u', 'i', 'blockquote', 'div', 'span', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'pre', 'sup', 'sub', 'div', 'strike', 'table', 'th', 'tr', 'td', 'img', 'iframe'];
+
+
+                    if (acceptNode.indexOf(nameNode.toLowerCase()) == -1) {
+
+                        if (!textContent == "") {
+                            item.insertAdjacentHTML('afterend', '<div>' + textContent + '</div>');
+                        }
+                        item.outerHTML = "";
+
+                    } else {
+                        if ((textContent == "") && (nameNode != 'IMG')) {
+                            item.outerHTML = "";
+                        }
+                    }
+                });
+
+                stringHtml = el.querySelector('body').innerHTML.toString();
+                stringHtml = stringHtml.replace(/<\!--.*?-->/g, "");
+
+                if (stringHtml != pasteHtml) {
+                    error("Při vkládání byl obsah pozměněn");
+                }
+
+                formatDoc("insertHtml", stringHtml);
+            } else {
+                formatDoc("insertText", pasteText);
+            }
+        }
+    });
+
+    window.addEventListener("resize", function () {
+        if (typeof clickHistory !== "undefined" && controler.classList.contains("active")) {
+            if (allowedEditable) {
+                if (document.querySelector('.k2editableContent.active')) {
+                    document.querySelector('.k2editableContent.active').classList.remove('active');
+                }
+
+                if (clickHistory.classList.contains('k2editableHtml')) {
+                    console.log(document.getSelection().anchorNode)
+                    if (document.getSelection().anchorNode.tagName) {
+                        if (document.getSelection().anchorNode.tagName.toLowerCase() == "img") {
+                            var el = document.getSelection().anchorNode;
+                            var range = document.createRange();
+                            var sel = window.getSelection();
+                            range.setStartAfter(el);
+                            range.collapse(true);
+                            sel.removeAllRanges();
+                            sel.addRange(range);
+
+                        }
+                    }
+
+                    controler.classList.add('active');
+                    var editablePosition = clickHistory.getBoundingClientRect(),
+                        widthEditable = editablePosition.width + 8,
+                        itemsImage = "",
+                        imageEditable = clickHistory.getAttribute('k2editableimages');
+
+                    var editorType = clickHistory.getAttribute("k2editortype");
+                    if (editorType == "code") {
+                        controler.querySelector(".codeEditor_button").classList.add("active");
+                        controler.querySelector(".visualEditor_button").classList.remove("active");
+                    } else if (editorType == "visual") {
+                        controler.querySelector(".codeEditor_button").classList.remove("active");
+                        controler.querySelector(".visualEditor_button").classList.add("active");
+                    }
+
+                    if (imageEditable) {
+                        imageEditable = imageEditable.split('|');
+                        for (i = 0; i < imageEditable.length; i++) {
+                            itemsImage += '<div class="gallery_item_edit"><button title="Obrázek" class="editable_btn" data-elem="#images_pop" data-type="insertimage" data-value="' + imageEditable[i] + '?w=1920"><img src="' + imageEditable[i] + '"></button></div>'
+                        }
+                    } else {
+                        itemsImage = "<h2>Nebyl nalezen žádný obrázek</h2>"
+                    }
+
+                    document.querySelector('.gallery_grid_edit').innerHTML = itemsImage;
+
+                    controler.style.width = widthEditable + "px";
+
+                    if (widthEditable <= 600 && document.querySelector("main")) {
+                        var wrap = (clickHistory.closest(".wrap")) ? clickHistory.closest(".wrap") : document.querySelector("main");
+                        var computedStyle = getComputedStyle(wrap);
+                        controler.style.width = ((wrap.clientWidth || document.querySelector("main").clientWidth) - parseFloat(computedStyle.paddingLeft) - parseFloat(computedStyle.paddingRight)) + "px";
+                    }
+
+                    var controlerHeight = controler.offsetHeight,
+                        topEditable = editablePosition.top + window.pageYOffset - controlerHeight - 3,
+                        leftEditable = editablePosition.left - 4;
+
+                    controler.style.left = leftEditable + "px";
+                    controler.style.top = topEditable + "px";
+                    controler.style.width = widthEditable + "px";
+                    controler.style.position = "absolute";
+
+                    var isCodeEditor = document.querySelector(".codeEditor_button").classList.contains("active");
+
+                    if (widthEditable <= 600 && document.querySelector("main") && !isCodeEditor) {
+                        let padding = parseFloat(computedStyle.paddingLeft);
+                        let mainLeft = (wrap.getBoundingClientRect().left) + padding;
+                        let fieldLeft = document.querySelector(".k2editableContent.k2editableHtml").getBoundingClientRect().left;
+                        let posX = fieldLeft - mainLeft - 7;
+                        let tolerance = 5;
+                        controler.style.width = ((wrap.clientWidth) - padding - parseFloat(computedStyle.paddingRight)) - tolerance + "px";
+                        controler.style.left = controler.getBoundingClientRect().left - posX + "px";
+                        controlerHeight = controler.offsetHeight;
+                        topEditable = editablePosition.top + window.pageYOffset - controlerHeight - 3;
+                        controler.style.top = topEditable + "px";
+
+                    }
+
+                    controler.querySelector(".editable_editorSwitch_wrap").classList.remove("bottom");
+
+
+                    triggerRange();
+                } else {
+                    controler.classList.remove('active');
+                }
+
+
+                if (clickHistory.hasAttribute("k2editortype")) {
+                    if (!(clickHistory.getAttribute("k2editortype") == "code")) {
+                        if (clickEHistory.target.closest(".layoutContent")) {
+                            if (!clickEHistory.target.closest(".layoutContent").classList.contains("active")) {
+
+                                clickEHistory.target.closest(".layoutContent").querySelectorAll(".layout_item, .contenteditable").forEach(function (item) {
+                                    item.setAttribute("contenteditable", "true");
+                                });
+                                document.querySelectorAll(".layoutContent.active").forEach(function (item) {
+                                    item.classList.remove("active");
+                                });
+                                clickEHistory.target.closest(".layoutContent").classList.add("active");
+                                clickEHistory.target.closest(".layoutContent").removeAttribute("contenteditable");
+
+                                clickHistory.removeAttribute("contenteditable");
+
+                                clickEHistory.target.focus();
+                            }
+                            var layoutItem = e.target.closest(".layout_item, .contenteditable");
+                            var layoutEdit = document.querySelector(".edit_layout");
+
+                            document.querySelectorAll(".layout_item.active, .contenteditable.active").forEach(function (item) {
+                                item.classList.remove("active")
+                            });
+
+                            if (layoutItem) {
+                                layoutItem.classList.add("active");
+                                layoutEdit.querySelector('input[name="paddingTop"]').value = layoutItem.style.paddingTop.replace("px", "") || 0;
+                                layoutEdit.querySelector('input[name="paddingBottom"]').value = layoutItem.style.paddingBottom.replace("px", "") || 0;
+                                layoutEdit.querySelector('input[name="paddingLeft"]').value = layoutItem.style.paddingLeft.replace("px", "") || 0;
+                                layoutEdit.querySelector('input[name="paddingRight"]').value = layoutItem.style.paddingRight.replace("px", "") || 0;
+
+                                if (!document.querySelector(".k2editableContent.active img.active"))
+                                    floatElementToElement(layoutEdit, layoutItem);
+                            }
+
+
+                        } else {
+                            if (clickHistory.querySelector(".layoutContent")) {
+                                clickHistory.querySelectorAll(".layout_item, .contenteditable").forEach(function (item) {
+                                    item.removeAttribute("contenteditable");
+                                    item.classList.remove("active");
+                                });
+                                this.querySelectorAll(".layoutContent").forEach(function (item) {
+                                    item.classList.remove("active");
+                                    item.setAttribute("contenteditable", "false");
+                                });
+                                document.querySelector(".edit_layout").classList.remove("active");
+                            }
+
+                            clickHistory.setAttribute("contenteditable", "true");
+                            clickHistory.focus();
+                        }
+
+                    }
+                } else {
+                    clickHistory.setAttribute("contenteditable", "true");
+                    clickHistory.focus();
+                }
+
+                clickHistory.classList.add('active');
+
+                document.dispatchEvent(new Event('scroll'));
+                existHash();
+                styleSelection();
+                saveSelection();
+
+            }
+        }
+    })
+
+    // zaktivnení editované časti a pokud se jedná o html obsah tak spuštení controleru contentEditableStart
+    q('.k2editableContent:not(.k2editableDatetime)', 'click', function (e) {
+        clickHistory = this;
+        clickEHistory = e;
+
+        if (allowedEditable) {
+            if (document.querySelector('.k2editableContent.active')) {
+                document.querySelector('.k2editableContent.active').classList.remove('active');
+            }
+
+            if (this.classList.contains('k2editableHtml')) {
+                console.log(document.getSelection().anchorNode)
+                if (document.getSelection().anchorNode.tagName) {
+                    if (document.getSelection().anchorNode.tagName.toLowerCase() == "img") {
+                        var el = document.getSelection().anchorNode;
+                        var range = document.createRange();
+                        var sel = window.getSelection();
+                        range.setStartAfter(el);
+                        range.collapse(true);
+                        sel.removeAllRanges();
+                        sel.addRange(range);
+
+                    }
+                }
+
+                controler.classList.add('active');
+                var editablePosition = this.getBoundingClientRect(),
+                    widthEditable = editablePosition.width + 8,
+                    itemsImage = "",
+                    imageEditable = this.getAttribute('k2editableimages');
+
+                var editorType = this.getAttribute("k2editortype");
+                if (editorType == "code") {
+                    controler.querySelector(".codeEditor_button").classList.add("active");
+                    controler.querySelector(".visualEditor_button").classList.remove("active");
+                } else if (editorType == "visual") {
+                    controler.querySelector(".codeEditor_button").classList.remove("active");
+                    controler.querySelector(".visualEditor_button").classList.add("active");
+                }
+
+                if (imageEditable) {
+                    imageEditable = imageEditable.split('|');
+                    for (i = 0; i < imageEditable.length; i++) {
+                        itemsImage += '<div class="gallery_item_edit"><button title="Obrázek" class="editable_btn" data-elem="#images_pop" data-type="insertimage" data-value="' + imageEditable[i] + '?w=1920"><img src="' + imageEditable[i] + '"></button></div>'
+                    }
+                } else {
+                    itemsImage = "<h2>Nebyl nalezen žádný obrázek</h2>"
+                }
+
+                document.querySelector('.gallery_grid_edit').innerHTML = itemsImage;
+
+                controler.style.width = widthEditable + "px";
+
+                if (widthEditable <= 600 && document.querySelector("main")) {
+                    var wrap = (this.closest(".wrap")) ? this.closest(".wrap") : document.querySelector("main");
+                    var computedStyle = getComputedStyle(wrap);
+                    controler.style.width = ((wrap.clientWidth || document.querySelector("main").clientWidth) - parseFloat(computedStyle.paddingLeft) - parseFloat(computedStyle.paddingRight)) + "px";
+                }
+
+                var controlerHeight = controler.offsetHeight,
+                    topEditable = editablePosition.top + window.pageYOffset - controlerHeight - 3,
+                    leftEditable = editablePosition.left - 4;
+
+                controler.style.left = leftEditable + "px";
+                controler.style.top = topEditable + "px";
+                controler.style.width = widthEditable + "px";
+                controler.style.position = "absolute";
+
+                if (widthEditable <= 600 && document.querySelector("main")) {
+                    let padding = parseFloat(computedStyle.paddingLeft);
+                    let mainLeft = (wrap.getBoundingClientRect().left) + padding;
+                    let fieldLeft = document.querySelector(".html_wrap.k2editableContent.k2editableHtml").getBoundingClientRect().left;
+                    let posX = fieldLeft - mainLeft - 7;
+                    let tolerance = 5;
+                    controler.style.width = ((wrap.clientWidth) - padding - parseFloat(computedStyle.paddingRight)) - tolerance + "px";
+                    controler.style.left = controler.getBoundingClientRect().left - posX + "px";
+                }
+                controler.querySelector(".editable_editorSwitch_wrap").classList.remove("bottom");
+
+                triggerRange();
+            } else {
+                controler.classList.remove('active');
+            }
+
+
+            if (this.hasAttribute("k2editortype")) {
+                if (!(this.getAttribute("k2editortype") == "code")) {
+                    if (e.target.closest(".layoutContent")) {
+                        if (!e.target.closest(".layoutContent").classList.contains("active")) {
+
+                            e.target.closest(".layoutContent").querySelectorAll(".layout_item, .contenteditable").forEach(function (item) {
+                                item.setAttribute("contenteditable", "true");
+                            });
+                            document.querySelectorAll(".layoutContent.active").forEach(function (item) {
+                                item.classList.remove("active");
+                            });
+                            e.target.closest(".layoutContent").classList.add("active");
+                            e.target.closest(".layoutContent").removeAttribute("contenteditable");
+
+                            this.removeAttribute("contenteditable");
+
+                            e.target.focus();
+                        }
+                        var layoutItem = e.target.closest(".layout_item, .contenteditable");
+                        var layoutEdit = document.querySelector(".edit_layout");
+
+                        document.querySelectorAll(".layout_item.active, .contenteditable.active").forEach(function (item) {
+                            item.classList.remove("active")
+                        });
+
+                        if (layoutItem) {
+                            layoutItem.classList.add("active");
+                            layoutEdit.querySelector('input[name="paddingTop"]').value = layoutItem.style.paddingTop.replace("px", "") || 0;
+                            layoutEdit.querySelector('input[name="paddingBottom"]').value = layoutItem.style.paddingBottom.replace("px", "") || 0;
+                            layoutEdit.querySelector('input[name="paddingLeft"]').value = layoutItem.style.paddingLeft.replace("px", "") || 0;
+                            layoutEdit.querySelector('input[name="paddingRight"]').value = layoutItem.style.paddingRight.replace("px", "") || 0;
+
+                            if (!document.querySelector(".k2editableContent.active img.active"))
+                                floatElementToElement(layoutEdit, layoutItem);
+                        }
+
+
+                    } else {
+                        if (this.querySelector(".layoutContent")) {
+                            this.querySelectorAll(".layout_item, .contenteditable").forEach(function (item) {
+                                item.removeAttribute("contenteditable");
+                                item.classList.remove("active");
+                            });
+                            this.querySelectorAll(".layoutContent").forEach(function (item) {
+                                item.classList.remove("active");
+                                item.setAttribute("contenteditable", "false");
+                            });
+                            document.querySelector(".edit_layout").classList.remove("active");
+                        }
+
+                        this.setAttribute("contenteditable", "true");
+                        this.focus();
+                    }
+
+                }
+            } else {
+                this.setAttribute("contenteditable", "true");
+                this.focus();
+            }
+
+            this.classList.add('active');
+
+            document.dispatchEvent(new Event('scroll'));
+            existHash();
+            styleSelection();
+            saveSelection();
+
+        }
+    });
+
+
+    // editace datetime
+    q('.k2editableDatetime', 'click', function () {
+        var elementFloat = document.querySelector('.editable_datetime'),
+            inputDateTime = document.querySelector('#dateTimeEditable'),
+            elementClick = this,
+            inputDay = document.querySelector('#daySet'),
+            inputMonth = document.querySelector('#monthSet'),
+            inputYear = document.querySelector('#yearSet'),
+            inputHour = document.querySelector('#hourSet'),
+            inputMinute = document.querySelector('#minuteSet'),
+            dateTime = elementClick.textContent,
+            date,
+            time;
+
+
+        dateTime = dateTime.split(" ");
+        date = dateTime[0];
+        time = dateTime[1];
+
+
+        if (time === undefined) {
+            var currentdate = new Date();
+            hour = currentdate.getHours();
+            minute = currentdate.getMinutes();
+            second = 0;
+
+            inputHour.value = hour;
+            inputMinute.value = minute;
+
+            time = hour + ":" + minute + ":" + second;
+
+        } else {
+            timeSplit = time.split(":");
+            hour = timeSplit[0];
+            minute = timeSplit[1];
+            second = timeSplit[2];
+
+            second === undefined ? second = 0 : false;
+
+            inputHour.value = hour;
+            inputMinute.value = minute;
+
+            time = hour + ":" + minute + ":" + second;
+        }
+
+        if (date !== undefined) {
+            date = date.split(".");
+            day = parseInt(date[0]);
+            month = parseInt(date[1]);
+            year = parseInt(date[2]);
+
+            inputDay.value = day;
+            inputMonth.value = month;
+            inputYear.value = year;
+
+        }
+
+
+        floatElementToElement(elementFloat, elementClick);
+        elementClick.classList.add('active');
+    });
+
+    q('.datetime_change', 'change', dateTimeChange);
+    q('.datetime_change', 'wheel', function (e) {
+        e.preventDefault();
+    });
+    //q('.datetime_change', 'keyup', dateTimeChange);
+
+    // střídaní třídy "active" na definovaný element (data-elem=".x") nebo na nasledujicí element (data-elem="next") a zaroven na elementu s třídou ".toggle_active"
+    q('.toggle_active', 'click', function () {
+
+        var selector = this.getAttribute('data-elem'),
+            elemOpen = document.querySelector('.toggle_active.active');
+
+        saveSelection();
+
+        if ((elemOpen) && (elemOpen != this)) {
+            elemOpen.click();
+        }
+
+        this.classList.toggle('active');
+        if (selector != "next") {
+            var el = document.querySelectorAll(selector),
+                elLength = el.length;
+
+            for (i = 0; i < elLength; i++) {
+                el[i].classList.toggle('active');
+            }
+        } else {
+            this.nextSibling.classList.toggle('active');
+        }
+        triggerRange();
+    });
+
+    // popup
+    q('.btn_pop', 'click', function () {
+
+        var selector = this.getAttribute('data-pop'),
+            el = document.querySelector(selector);
+
+        el.classList.toggle('active');
+
+
+        triggerRange();
+    });
+
+
+    // kliknutí na tlačítka v controleru
+    document.addEventListener('click', function (e) {
+        var elementClick = isElement(e, 'editable_btn');
+        
+        if (elementClick) {
+            var isVisual = (document.querySelector('.k2editableContent.active').getAttribute("k2editortype") == "visual") ? true : false;
+            if (isVisual) {
+                e.preventDefault();
+                var type = elementClick.getAttribute('data-type');
+                var popup = document.querySelector('.popup_edit_container.active')
+
+                if (type == "link") {
+                    restoreSelection();
+                    var sLnk = document.querySelector('#linkInput').value,
+                        linkTitle = document.querySelector('#linkTitle').value,
+                        newCart = document.querySelector('#linkNewCart').checked,
+                        createButton = document.querySelector('#linkNewButton').checked,
+                        imgActiveEl = document.querySelector('img.active'),
+                        sText = document.getSelection(),
+                        expression1 = /((?:https?\:\/\/|www\.)(?:[-a-z0-9]+\.)*[-a-z0-9]+.*)/i,
+                        regex1 = new RegExp(expression1),
+                        expression2 = /^\/([^?\/]+)/i,
+                        regex2 = new RegExp(expression2);
+                    expression3 = /(?![.*])#\S+/i,
+                        regex3 = new RegExp(expression3);
+
+
+                    if (sLnk.match(regex1) || sLnk.match(regex2)) {
+                        classButton = createButton ? 'class="btn btn_normal k2StyleEditor"' : '';
+                        console.log(classButton);
+                        if (imgActiveEl) {
+                            htmlImg = imgActiveEl.outerHTML;
+                            selectElement(imgActiveEl);
+                            sText = document.getSelection();
+                            imgActiveEl.remove();
+                            if (newCart) {
+                                formatDoc('insertHTML', '<a href="' + sLnk + '" title="' + linkTitle + '" target="_blank">' + htmlImg + '</a>');
+                            } else {
+                                formatDoc('insertHTML', '<a href="' + sLnk + '" title="' + linkTitle + '">' + htmlImg + '</a>');
+                            }
+                        } else if (quantitySelection()) {
+                            if (newCart) {
+                                formatDoc('insertHTML', '<a href="' + sLnk + '" ' + classButton + ' title="' + linkTitle + '" target="_blank">' + sText + '</a>');
+                            } else {
+                                formatDoc('insertHTML', '<a href="' + sLnk + '" ' + classButton + '" title="' + linkTitle + '">' + sText + '</a>');
+                            }
+                        } else {
+                            error("Vyberte prosím text");
+                        }
+                    } else if (sLnk.match(regex3)) {
+                        classButton = createButton ? 'class="btn btn_normal js_favorite k2StyleEditor"' : 'class="js_favorite k2StyleEditor"';
+                        console.log(classButton);
+                        if (imgActiveEl) {
+                            htmlImg = imgActiveEl.outerHTML;
+                            selectElement(imgActiveEl);
+                            sText = document.getSelection();
+                            imgActiveEl.remove();
+                            if (newCart) {
+                                formatDoc('insertHTML', '<a data-selector="' + sLnk + '" href="' + sLnk + '" title="' + linkTitle + '" class="js_favorite k2StyleEditor" target="_blank">' + htmlImg + '</a>');
+                            } else {
+                                formatDoc('insertHTML', '<a data-selector="' + sLnk + '" href="' + sLnk + '" title="' + linkTitle + '" class="js_favorite k2StyleEditor">' + htmlImg + '</a>');
+                            }
+                        } else if (quantitySelection()) {
+                            if (newCart) {
+                                formatDoc('insertHTML', '<a data-selector="' + sLnk + '" href="' + sLnk + '" title="' + linkTitle + '" ' + classButton + ' target="_blank">' + sText + '</a>');
+                            } else {
+                                formatDoc('insertHTML', '<a data-selector="' + sLnk + '" href="' + sLnk + '" title="' + linkTitle + '" ' + classButton + '">' + sText + '</a>');
+                            }
+                        } else {
+                            error("Vyberte prosím text");
+                        }
+                    } else {
+                        error("Chybně vyplněná URL");
+                    }
+                    if (document.querySelector('.controler_btn.active')) {
+                        document.querySelector('.controler_btn.active').click();
+                    }
+
+                    //restoreSelection();
+                } else if (type == "table") {
+                    restoreSelection();
+                    var row = document.querySelector('#tablerow').value,
+                        col = document.querySelector('#tablecol').value,
+                        header = document.querySelector('#tableheader').checked;
+                    if (row <= 0) {
+                        error("Nesprávný počet řádků");
+                    } else if (col <= 0) {
+                        error("Nesprávný počet sloupců");
+                    } else {
+
+                        if (document.getSelection().anchorNode.closest("table"))
+                            error("Tato akce není možná");
+                        else
+                            formatDoc('insertHTML', createTable(row, col, header));
+
+                        if (document.querySelector(".table_wrapper > .table_wrapper"))
+                            $(document.querySelector(".table_wrapper > .table_wrapper")).unwrap(".table_wrapper");
+
+                    }
+
+                } else if (type == "hash") {
+
+
+                    //restoreSelection();
+                    var value = document.querySelector('#hashInput').value,
+                        sElement = getSelectionParentElement(),
+                        elHash = document.querySelectorAll('body #' + value),
+                        hashNew = document.createElement('span');
+
+                    if (elHash.length < 1) {
+                        if (quantitySelection()) {
+                            //sElement.setAttribute('id', value);
+                            eleMove = sElement.closest('.k2editableContent > *')
+                            console.log(eleMove);
+
+                            if (eleMove != null) {
+                                hashNew.setAttribute('id', value);
+                                hashNew.classList.add('k2StyleEditor');
+                                eleMove.before(hashNew);
+                                hashControl(hashNew);
+                                hashNew = "";
+                                existHash();
+                                isNeedSave(document.querySelector('.k2editableContent.active'));
+                                document.querySelector('#visibleHash').click();
+                            } else {
+                                error("Vyberte prosím řádek");
+                            }
+                            //selectElement(sElement);
+
+                        } else {
+                            error("Vyberte prosím řádek");
+                        }
+                    } else {
+                        error('Kotva "' + value + '" na stránce existuje');
+                    }
+                    //formatDoc('insertHTML', sText);
+
+
+                } else if ((type == "formatblock") || (type == "forecolor") || (type == "fontsize")) {
+                    var value = elementClick.getAttribute('data-value');
+                    //restoreSelection();
+                    formatDoc(type, value);
+                } else if (type == "insertimage") {
+                    var value = elementClick.getAttribute('data-value');
+
+                    // var sel = document.selection;
+                    // if (sel) {
+                    //     var textRange = sel.createRange();
+                    //     formatDoc("insertHTML", '<img src="' + value + '">');
+                    //     textRange.collapse(false);
+                    //     textRange.select();
+                    // } else {
+                    restoreSelection();
+                    formatDoc("insertHTML", '<img loading="lazy" src="' + value + '">');
+                    // }
+
+                } else {
+                    formatDoc(type);
+                }
+
+                if (document.querySelector('.controler_btn.active')) {
+                    document.querySelector('.controler_btn.active').click();
+                }
+                if (popup) {
+                    popup.querySelector('.btn_pop').click();
+                }
+            }
+        }
+        
+        var el = document.querySelector('.k2editableContent.active');
+        if (e.target.closest(".editable_control.active .codeEditor_button:not(.active)")) {
+            toCodeEditor(el);
+            document.querySelector(".k2editableContent.k2editableHtml.active").click();
+            checkTypeEditorBtns(el);
+            document.dispatchEvent(new Event('scroll'));
+        }
+        if (e.target.closest(".editable_control.active .visualEditor_button:not(.active)")) {
+            toVisualEditor(el);
+            document.querySelector(".k2editableContent.k2editableHtml.active").click();
+            checkTypeEditorBtns(el);
+            document.dispatchEvent(new Event('scroll'));
+        }
+    }, false);
+
+    function checkTypeEditorBtns(el) {
+        var editorType = el.getAttribute("k2editortype");
+        if (editorType == "code") {
+            controler.querySelector(".codeEditor_button").classList.add("active");
+            controler.querySelector(".visualEditor_button").classList.remove("active");
+        } else if (editorType == "visual") {
+            controler.querySelector(".codeEditor_button").classList.remove("active");
+            controler.querySelector(".visualEditor_button").classList.add("active");
+        }
+    }
+
+
+    //zobrazení kotev
+    visibleHash();
+
+
+    // přichycení controleru
+    stickyControler();
+
+
+    // při psaní v editovaných blocích
+    writeInContent();
+
+
+    // volaní posuvníku pro velikost písma
+    range(false, false);
+
+
+    // editace odkazu v editované časti a obrázky
+    document.addEventListener("click", function (e) {
+        var target = e.target;
+
+        if (document.querySelector('.k2editableContent table td.active')) {
+            document.querySelector('.k2editableContent table td.active').removeAttribute('class');
+        } // false
+
+
+        while (target && target.parentNode !== document) {
+            if (!target) {
+                return;
+            }
+
+            // muže platit více podmínek?
+            if (target.nodeName === "A") {
+                if (target.closest('.k2editableContent')) {
+                    editLink(target);
+                    break;
+                }
+            } else if (target.nodeName === "IMG") {
+                if (target.closest('.k2editableContent')) {
+                    clickImageVideo(target);
+                    break;
+                }
+            } else if ((target.nodeName === "TD") || target.nodeName === "TH" || target.classList.contains("active_resize")) {
+                if (target.closest('.k2editableContent')) {
+                    editTable(target);
+                    break;
+                }
+            } else if (target.closest('.editable_video_content')) {
+                clickImageVideo(target);
+                break;
+            }
+
+            target = target.parentNode;
+
+        }
+
+
+    });
+
+
+}
+
+//V daném K2 Editoru zruší všechny aktivní layouty
+function removeLayoutActive(el) {
+
+    if (el.querySelector(".layoutContent")) {
+        el.querySelectorAll(".layout_item, .contenteditable").forEach(function (item) {
+            item.removeAttribute("contenteditable");
+            item.classList.remove("active");
+        });
+        el.querySelectorAll(".layoutContent").forEach(function (item) {
+            item.classList.remove("active");
+            item.removeAttribute("contenteditable");
+        });
+    }
+
+}
+
+
+function highLite(el) {
+    const dataLang = 'html';//el.dataset.lang;
+    const langObj = defineHtmlEditor[dataLang];
+    let html = el.innerHTML;
+    Object.keys(langObj).forEach(function (key) {
+        html = html.replace(langObj[key], `<i class=${dataLang}_${key}>$1</i>`);
+    });
+    el.previousElementSibling.innerHTML = html;
+}
+
+///\s+( <+)*$/g
+function escapeHTML(html) {
+    html = html.replaceAll(/\n/g, "&#10;");
+    html = html.replaceAll('°/°', ' ');
+    html = html.replaceAll('>', '&gt;');
+    html = html.replaceAll('<', '&lt;');
+    //console.log(html);
+    return html;
+}
+
+function unescapeHTML(html) {
+    html = html.replaceAll("&#10;", "");
+    html = html.replaceAll('&gt;', '>');
+    html = html.replaceAll('&lt;', '<');
+    html = html.replace(/\>[\r\n ]+\</g, "><").trim();
+    //console.log(html);
+    return html;
+}
+
+//Převede obsah editoru do textararee pro HTML edit..
+function toCodeEditor(el) {
+    if (el.getAttribute("k2editortype") == "visual" || !el.hasAttribute("k2editortype")) {
+        el.setAttribute("k2editortype", "code");
+        el.setAttribute("contenteditable", "false");
+        test = formatHtml(el, 0, true).innerHTML;
+        //console.log(test);
+        test = escapeHTML(test);
+        //console.log(escapeHTML(test));
+        el.innerHTML = '<div class="code_color"></div><div data-lang="html" id="code" autocomplete="off" spellcheck="off" autocorrect="off" autocapitalize ="off" contenteditable>' + test + '</div>';
+
+        el.querySelector("#code").addEventListener("input", highLite.bind(null, el.querySelector("#code")));
+        el.querySelector("#code").addEventListener("input", highLite.bind(null, el.querySelector("#code")));
+        highLite(el.querySelector("#code")); // Init!
+        el.querySelector("#code").style.minHeight = (el.querySelector("#code").scrollHeight + 30) + "px";
+        controler.querySelector(".editable_control_wrap").classList.add("hide");
+
+        var editableContent = document.querySelector('.k2editableContent.active'),
+            editableRect = editableContent.getBoundingClientRect(),
+            editableTop = editableRect.top + window.pageYOffset - controler.offsetHeight - 3;
+
+
+        if (controler.classList.contains("sticky")) controler.style.top = 0 + "px";
+        else controler.style.top = editableTop + "px";
+
+        return true;
+    } else return false;
+}
+
+
+function formatHtml(node, level, newFormating) {
+    var indentBefore = new Array(level++ + 1).join('    '),
+        indentAfter = new Array(level - 1).join('    '),
+        textNode;
+
+
+    for (var i = 0; i < node.children.length; i++) {
+        textNode = document.createTextNode('\n' + indentBefore);
+        node.insertBefore(textNode, node.children[i]);
+
+        formatHtml(node.children[i], level);
+
+        if (node.lastElementChild == node.children[i]) {
+            textNode = document.createTextNode('\n' + indentAfter);
+            node.appendChild(textNode);
+        }
+    }
+
+    return node;
+}
+
+//Převede obsah textarey do obsahu editoru pro klasický vizuální vzhled HTML.
+function toVisualEditor(el) {
+    if (el.getAttribute("k2editortype") == "code") {
+        el.setAttribute("contenteditable", "true");
+        el.setAttribute("k2editortype", "visual");
+        // console.log(el.querySelector("#code").value);
+        te = unescapeHTML(el.querySelector("#code").innerText);
+        el.innerHTML = te;//.replace(/\>[\r\n ]+\</g, "><").trim();
+        controler.querySelector(".editable_control_wrap").classList.remove("hide");
+        document.execCommand("defaultParagraphSeparator", false, "p");
+        editableRect = el.getBoundingClientRect(),
+            editableTop = editableRect.top + window.pageYOffset - controler.offsetHeight - 3;
+
+        if (controler.classList.contains("sticky")) controler.style.top = 0 + "px";
+        else controler.style.top = editableTop + "px";
+
+        tables = Array.from(document.querySelectorAll(".table_wrapper"));
+    } else return false;
+}
+function switchEditorType(isCodeEditor){  //pro webovou k2
+    var el = document.querySelector('.k2editableContent.active');
+    if(!el){
+        document.querySelector(".k2editableContent").click();//activate        el = document.querySelector('.k2editableContent.active');
+    }
+    if(el){        
+        if (isCodeEditor) {
+            toCodeEditor(el);
+            document.dispatchEvent(new Event('scroll'));
+        }else{
+            toVisualEditor(el);
+            document.dispatchEvent(new Event('scroll'));
+        }
+        let margin = document.querySelector('.editable_control').offsetHeight;
+        if(!window.webK2)
+            margin+= 30;
+        else            margin += 10;
+            el.setAttribute('style', 'margin-top:'+ margin +'px !important');
+    }
+}
+function existHash() {
+    var el = document.querySelector('.k2editableContent.active');
+    if (el.querySelector('.k2StyleEditor[id]')) {
+        document.querySelector('.visible_hash_content').classList.remove('hidden');
+    } else {
+        document.querySelector('.visible_hash_content').classList.add('hidden');
+    }
+}
+
+function visibleHash() {
+    document.getElementById('visibleHash').addEventListener('change', function () {
+        if (this.checked) {
+            // je active
+            var editActiveEl = document.querySelector('.k2editableContent.active')
+            if (editActiveEl) {
+                editActiveEl.classList.add('active_hash');
+                editActiveEl.removeAttribute('contenteditable');
+            }
+            removeSelection();
+            allowedEditable = false;
+            settingHash(true);
+        } else {
+            // neni active
+            var activeHashEl = document.querySelector('.k2editableContent.active_hash');
+            if (activeHashEl) {
+                activeHashEl.classList.remove('active_hash');
+            }
+            allowedEditable = true;
+            settingHash(false);
+            document.querySelector('.editable_hash').classList.remove('active');
+        }
+
+    }, false);
+
+    hashControl();
+}
+
+//editace kotev
+function hashControl(newElement) {
+    var moveActive = false;
+    //console.log(active);
+    if (newElement) {
+        newElement.addEventListener('mousedown', startMoveHash, true);
+    } else {
+        document.querySelectorAll('.k2StyleEditor[id]').forEach(function (r) {
+            r.addEventListener('mousedown', startMoveHash, true);
+        });
+    }
+
+
+    function startMoveHash(event) {
+        //thisActive = document.elementFromPoint((widthWindow / 2), event.clientY);
+        this.classList.add('move');
+        moveActive = true;
+        document.querySelector('.editable_hash').classList.remove('active');
+        document.addEventListener('mousemove', MoveHash, false);
+        document.addEventListener('mouseup', StopMoveHash, false);
+    }
+
+    function MoveHash(event) {
+        var activeContentEditable = document.querySelector('.k2editableContent.active');
+        var hash = document.querySelector('.k2StyleEditor.move');
+        var thisActive = document.elementFromPoint(activeContentEditable.getBoundingClientRect().left, event.clientY);
+        var eleMove = thisActive.closest('.k2editableContent > *');
+        //console.log(thisActive);active.previousElementSibling;
+        if (eleMove != null) {
+            //if(!eleMove.previousSibling.classList.contains('k2StyleEditor')){
+            eleMove.before(hash);
+            //}
+        }
+    }
+
+    function StopMoveHash() {
+        document.removeEventListener('mousemove', MoveHash, false);
+        document.removeEventListener('mouseup', StopMoveHash, false);
+        if (document.querySelector('.k2StyleEditor.move')) {
+            document.querySelector('.k2StyleEditor.move').classList.remove('move');
+        }
+        moveActive = false
+        isNeedSave(document.querySelector('.k2editableContent.active'));
+    }
+}
+
+function settingHash(visible) {
+    document.querySelectorAll('.k2StyleEditor[id]').forEach(function (r) {
+        var id = r.getAttribute('id');
+        if (visible) {
+            var settingButton = document.createElement('button');
+            settingButton.classList.add("hash_setting");
+            r.append(settingButton);
+            settingButton.addEventListener('click', viewSetting, false);
+        } else {
+            r.innerHTML = "";
+        }
+    });
+
+    function viewSetting(e) {
+        e.stopPropagation();
+        e.preventDefault();
+
+        var el = document.querySelector('.editable_hash'),
+            id = this.parentElement.getAttribute('id'),
+            inputhash = document.querySelector('#HashNameEdit'),
+            linkHash = document.querySelector('#linkHash');
+
+        if (!this.classList.contains('active')) {
+            linkHash.value = location.href.split('?')[0].split('#')[0] + "#" + id;
+            inputhash.value = id;
+
+            floatElementToElement(el, this);
+            this.classList.add('active');
+        } else {
+            el.classList.remove('active');
+            this.classList.remove('active');
+        }
+    }
+
+}
+
+
+function dateTimeChange(e) {
+    e.preventDefault();
+    var el = this,
+        type = el.getAttribute('data-type'),
+        elDay = document.querySelector('#daySet'),
+        elMonth = document.querySelector('#monthSet'),
+        elYear = document.querySelector('#yearSet'),
+        hour = document.querySelector('#hourSet').value,
+        minute = document.querySelector('#minuteSet').value,
+        day = parseInt(elDay.value),
+        month = parseInt(elMonth.value),
+        year = parseInt(elYear.value);
+
+
+    contentEditableElem = document.querySelector('.k2editableDatetime.active');
+    contentEditableElem.classList.add('k2editableContentChanged');
+
+    isNeedSave();
+
+    checkValid(el)
+
+    function checkValid(elem) {
+        var value = parseInt(elem.value),
+            min = elem.getAttribute('data-min'),
+            max = elem.getAttribute('data-max');
+
+
+        if ((isNaN(value)) || (value > max)) {
+            elem.value = min;
+            value = min;
+        } else if (value < min) {
+            elem.value = max;
+            value = max;
+        }
+
+        hour = document.querySelector('#hourSet').value;
+        minute = document.querySelector('#minuteSet').value;
+        day = parseInt(elDay.value);
+        month = parseInt(elMonth.value);
+        year = parseInt(elYear.value);
+        contentEditableElem.textContent = day + "." + month + "." + year;
+        contentEditableElem.setAttribute("data-value", year + "-" + month + "-" + day + " " + hour + ":" + minute + ":0");
+    }
+
+
+    if (type == "date") {
+
+
+        if (month == 2) {
+            if (((year % 4 == 0) && (year % 100 != 0)) || (year % 400 == 0)) {
+                elDay.setAttribute('data-max', 29);
+            } else {
+                elDay.setAttribute('data-max', 28);
+            }
+        } else if ((month == 4) || (month == 6) || (month == 9) || (month == 11)) {
+            elDay.setAttribute('data-max', 30);
+        } else {
+            elDay.setAttribute('data-max', 31);
+        }
+
+
+        checkValid(elDay);
+
+
+
+    }
+
+
+}
+
+
+// funkce při psaní v editovaných blocích
+function writeInContent() {
+    var contentItem = document.querySelectorAll('.k2editableContent'),
+        contentItemLength = contentItem.length;
+    for (i = 0; i < contentItemLength; i++) {
+        contentItem[i].addEventListener('keydown', function () {
+            isNeedSave(this);
+        }, false);
+
+        contentItem[i].addEventListener('keypress', function (e) {
+            if (this.classList.contains('active') && !this.classList.contains('k2editableHtml')) {
+                max = parseInt(this.getAttribute('data-k2-max'));
+                text = this.textContent;
+                textLength = text.length;
+                if (e.keyCode == 13) {
+                    e.preventDefault();
+                    error("Nelze vytvořit nový řádek");
+                }
+
+                if ((max > 0) && (max <= textLength)) {
+                    e.preventDefault();
+                    error("Editovaný text je přílíš dlouhý");
+                    return false;
+                }
+
+            }
+        }, false);
+
+        // contentItem[i].addEventListener('keyup', function (e) {
+        //     if (this.classList.contains('active') && this.getAttribute("k2editortype") == "visual" ) {
+        //         var el = window.getSelection().getRangeAt(0).commonAncestorContainer;
+        //         if(!(el && el.nodeType === Node.ELEMENT_NODE)) el = window.getSelection().getRangeAt(0).commonAncestorContainer.parentNode;
+
+        //         if(el.closest(".layoutContent") && !(this.getAttribute("k2editortype") == "code")){
+        //             if(!el.closest(".layoutContent").classList.contains("active")){
+        //                 el.closest(".layoutContent").querySelectorAll(".layout_item").forEach(function(item){
+        //                     item.setAttribute("contenteditable", "true");
+        //                 });
+        //                 el.closest(".layoutContent").classList.add("active");
+        //                 el.closest(".layoutContent").removeAttribute("contenteditable");
+        //                 this.removeAttribute("contenteditable");
+
+        //                 el.click();
+        //                 el.focus();
+        //             }
+        //         }
+        //         else{
+        //             if(this.querySelector(".layoutContent")){
+        //                 this.querySelectorAll(".layout_item").forEach(function(item){
+        //                     item.removeAttribute("contenteditable");
+        //                 });
+        //                 this.querySelectorAll(".layoutContent").forEach(function(item){
+        //                     item.classList.remove("active");
+        //                     item.setAttribute("contenteditable", "false");
+        //                 });
+        //             }
+
+        //             this.setAttribute("contenteditable", "true");
+        //         }
+
+        //     }
+        // }, false);
+
+
+    }
+
+
+}
+
+function isNeedSave(e) {
+    if (e !== undefined) {
+        e.classList.add('k2editableContentChanged');
+    }
+    if (!needSave) {
+        needSave = true;
+        document.querySelector('.editable_save').removeAttribute('disabled');
+        if (!editingInK2) {
+            window.onbeforeunload = function () {
+                //document.body.innerHTML = location.href;
+                return 'If you close this page you will lose your stride update!';
+            };
+        }
+
+    }
+
+    if (document.querySelector('.edit_table.active')) {
+        document.querySelector('.edit_table.active').classList.remove('active');
+    }
+}
+
+
+// přesouvaní sekcí
+function moveContent() {
+
+    var widthWindow = window.innerWidth,
+        thisActive,
+        thisActiveRect,
+        lastY;
+
+    window.addEventListener("resize", function () {
+        widthWindow = window.innerWidth;
+    });
+
+    /*  addListenerMulti(elm, 'mousedown touchstart', moveBeforeStart);
+      addListenerMulti(document, 'mouseup touchend', moveStopItem);*/
+
+    if (pageConts) {
+        pageConts.addEventListener('mousedown', moveBeforeStart);
+    }
+
+
+    /* var items = document.querySelectorAll('.html_container_edit'),
+             itemsLength = items.length;
+         for (i = 0; i < itemsLength; i++) {
+             var t = items[i];
+             t.removeEventListener("mousedown", moveBeforeStart, false);
+             t.removeEventListener("touchstart", moveBeforeStart, false);
+             t.removeEventListener("mouseup", moveStopItem, false);
+             t.removeEventListener("touchend", moveStopItem, false);
+         }*/
+
+
+    function moveBeforeStart(event) {
+        if (isChangeMove) {
+            thisActive = document.elementFromPoint((widthWindow / 2), event.clientY);
+            thisActiveRect = thisActive.getBoundingClientRect();
+            var ghostElementActive = document.createElement('div');
+
+
+            ghostElementActive.classList.add('ghost_move');
+            ghostElementActive.style.height = thisActiveRect.height + 'px';
+
+
+            thisActive.insertAdjacentHTML('beforeBegin', ghostElementActive.outerHTML);
+            thisActive.classList.add('moving');
+
+
+            thisActive.style.width = thisActiveRect.width + 'px';
+            thisActive.style.left = thisActiveRect.left + 'px';
+            thisActive.style.top = (event.clientY - (thisActiveRect.height / 2)) + 'px';
+            thisActive.style.position = 'fixed';
+
+
+            addListenerMulti(document, 'mousemove touchmove', moveStartItem);
+            document.addEventListener('mouseup', moveStopItem);
+        }
+    }
+
+    function moveStopItem(event) {
+        event.preventDefault();
+
+        //console.log(thisActive);
+
+        if (document.querySelector('.ghost_move')) {
+            document.querySelector('.ghost_move').after(thisActive);
+            document.querySelector('.ghost_move').outerHTML = "";
+        }
+        if (thisActive) {
+            thisActive.classList.remove('moving');
+            thisActive.style.zIndex = null;
+            thisActive.style.width = null;
+            thisActive.style.left = null;
+            thisActive.style.top = null;
+            thisActive.style.position = null;
+            thisActive = "";
+        }
+
+        document.removeEventListener("mousemove", moveStartItem, false);
+        document.removeEventListener("touchmove", moveStartItem, false);
+        document.removeEventListener('mouseup', moveStopItem);
+
+        pageConts.classList.add('k2editableOrderChanged');
+
+        isNeedSave();
+    }
+
+    function moveStartItem(event) {
+
+        if ((typeof event.pageX !== "undefined")) {
+            event.preventDefault();
+            y = parseFloat(event.clientY - (thisActiveRect.height / 2));
+        } else {
+            y = parseFloat(event.touches[0].clientY - (thisActiveRect.height / 2));
+        }
+
+        //console.log(thisActiveRect);
+        //console.log(x - thisActiveRect.left);
+
+        if (document.querySelector('.ghost_move')) {
+            document.querySelector('.ghost_move').outerHTML = "";
+        }
+
+        if (thisActive) {
+
+            thisActive.style.zIndex = "-1";
+
+            elementMove = document.elementFromPoint((widthWindow / 2), event.clientY - (thisActiveRect.height / 2));
+            
+
+            if (elementMove) {
+                if ((elementMove.closest('.k2pageContainer') != null) && !elementMove.classList.contains('k2pageContainer')) {
+
+                    var ghostElement = document.createElement('div');
+                    ghostElement.classList.add('ghost_move');
+                    ghostElement.style.height = thisActiveRect.height + 'px';
+
+                    elementMove.insertAdjacentHTML('beforeBegin', ghostElement.outerHTML);
+
+
+                } else {
+                    var ghostElement = document.createElement('div');
+                    ghostElement.classList.add('ghost_move');
+                    ghostElement.style.height = thisActiveRect.height + 'px';
+
+                    if (y < thisActive.parentNode.offsetTop) {
+                        pageConts.insertAdjacentHTML('afterbegin', ghostElement.outerHTML);
+                    } else {
+                        pageConts.insertAdjacentHTML('beforeend', ghostElement.outerHTML);
+                    }
+                }
+            }
+
+
+            thisActive.style.top = y + "px";
+            thisActive.style.zIndex = "1000";
+            lastY = y;
+        }
+    }
+}
+
+//  funkce pro editaci odkazu
+function editLink(target) {
+    var editLink = document.querySelector('.editable_link'),
+        isBlank,
+        isBtn,
+        href;
+    if (target.hasAttribute("href")) {
+        href = target.getAttribute('href');
+        document.querySelector('#linkInputEdit').value = href;
+    } else if (target.hasAttribute("data-selector")) {
+        href = target.getAttribute('data-selector');
+        document.querySelector('#linkInputEdit').value = href;
+    }
+
+    target.getAttribute('target') !== null ? isBlank = true : isBlank = false;
+    target.classList.contains('btn') ? isBtn = true : isBtn = false;
+
+    document.querySelector('#linkTitleEdit').value = target.getAttribute('title');
+    
+    if (isBlank) {
+        editLink.querySelector('#linkNewCartEdit').checked = true;
+    } else {
+        editLink.querySelector('#linkNewCartEdit').checked = false;
+    }
+    if (isBtn) {
+        editLink.querySelector('#linkNewButtonEdit').checked = true;
+    } else {
+        editLink.querySelector('#linkNewButtonEdit').checked = false;
+    }
+    floatElementToElement(editLink, target);
+    elemLinkEdit = target;
+}
+
+//  funkce zmenu velikosti obrázku
+function clickImageVideo(target) {
+
+    selectElement(target);
+    styleSelection();
+    removeSelection();
+
+    target.classList.add('active');
+    var positionImg = target.getBoundingClientRect(),
+        topImage = positionImg.top + window.pageYOffset,
+        leftImage = positionImg.left,
+        widthImage = positionImg.width,
+        heightImage = positionImg.height,
+        imageSet = document.querySelector('.image_set_edit');
+
+    styleImage = target.currentStyle || window.getComputedStyle(target);
+    imageFloat = styleImage.cssFloat;
+
+    if (imageFloat === "right") {
+        imageSet.querySelector('.point_move_edit').classList.add('reverse_edit');
+        isreverse_edit = true;
+    } else {
+        imageSet.querySelector('.point_move_edit').classList.remove('reverse_edit');
+        isreverse_edit = false;
+    }
+
+    imageSet.classList.add('active');
+    imageSet.style.left = leftImage + 'px';
+    imageSet.style.top = topImage + 'px';
+    imageSet.style.width = widthImage + 'px';
+    imageSet.style.height = heightImage + 'px';
+
+    var marginBottom = target.style.marginBottom.replace("px", ""),
+        marginTop = target.style.marginTop.replace("px", ""),
+        marginLeft = target.style.marginLeft.replace("px", ""),
+        marginRight = target.style.marginRight.replace("px", "");
+
+    imageSet.querySelector('input[name="marginBottom"]').value = (marginBottom == "") ? 0 : marginBottom;
+    imageSet.querySelector('input[name="marginTop"]').value = (marginTop == "") ? 0 : marginTop;
+    imageSet.querySelector('input[name="marginLeft"]').value = (marginLeft.replace("px", "") == "") ? 0 : marginLeft;
+    imageSet.querySelector('input[name="marginRight"]').value = (marginRight.replace("px", "") == "") ? 0 : marginRight;
+
+    document.querySelector(".edit_layout").classList.remove("active");
+}
+
+function imageVideoSetResize(target) {
+    var positionImg = target.getBoundingClientRect(),
+        topImage = positionImg.top + window.pageYOffset,
+        leftImage = positionImg.left,
+        widthImage = positionImg.width,
+        heightImage = positionImg.height,
+        imageSet = document.querySelector('.image_set_edit');
+
+    imageSet.style.left = leftImage + 'px';
+    imageSet.style.top = topImage + 'px';
+    imageSet.style.width = widthImage + 'px';
+    imageSet.style.height = heightImage + 'px';
+}
+
+function resizeTable(tableEl) {
+    const tableWrap = tableEl.closest(".table_wrapper");
+    const BORDER_SIZE = 10;
+    let m_pos;
+
+    function resize(e) {
+        const dx = m_pos - e.x;
+        // helper => parent div::after of the var tableWrap
+        const helper = tableWrap.closest(".table_helper_active");
+        const MAX_WIDTH = helper.closest(".html_wrap").offsetWidth;
+        let maxWidth;
+
+        m_pos = e.x;
+
+        if (tableWrap.closest(".table_helper_active"))
+            maxWidth = tableWrap.closest(".table_helper_active").style.maxWidth;
+        else
+            maxWidth = tableWrap.style.maxWidth;
+
+
+        if (maxWidth.charAt(maxWidth.length - 1) === "%")
+            maxWidth = MAX_WIDTH;
+        else
+            maxWidth = maxWidth.slice(0, maxWidth.length - 2);
+
+        if (maxWidth >= 250 && maxWidth <= MAX_WIDTH) {
+            // Check if table is active
+            if (tableWrap.closest(".table_helper_active")) {
+                // maxWidth for helper
+                const newVal = (parseInt(getComputedStyle(helper, '').width) - dx);
+                helper.style.maxWidth = newVal + "px";
+                tableWrap.style.maxWidth = "none";
+            }
+
+        } else {
+            if ((maxWidth - 250) < (MAX_WIDTH - maxWidth)) {
+                if (!tableWrap.closest(".table_helper_active"))
+                    tableWrap.style.maxWidth = "250px";
+                else
+                    tableWrap.closest(".table_helper_active").style.maxWidth = "250px";
+            } else {
+                if (!tableWrap.closest(".table_helper_active"))
+                    tableWrap.style.maxWidth = MAX_WIDTH + "px";
+                else
+                    tableWrap.closest(".table_helper_active").style.maxWidth = MAX_WIDTH + "px";
+            }
+        }
+    }
+
+    function mDown(e) {
+        if ((tableWrap.offsetWidth - e.offsetX) < BORDER_SIZE && e.target == tableWrap.parentNode) {
+            m_pos = e.x;
+            document.addEventListener("mousemove", resize, false);
+        } else if (e.target != tableWrap.parentNode) {
+            if (e.target.closest(".table_helper_active") != tableWrap.closest(".table_helper_active")) {
+                // Klik mimo tabulku
+                tableWrap.removeAttribute('class');
+                tableWrap.classList.add("table_wrapper");
+
+                if (tableWrap.closest(".table_helper_active")) {
+                    tableWrap.style.maxWidth = tableWrap.closest(".table_helper_active").style.maxWidth;
+                    $(tableWrap).unwrap();
+                }
+                document.removeEventListener("mousedown", mDown, false);
+            }
+        }
+    }
+
+    // Obalení tabulky wrapem pro drag
+    tableWrap.classList.add("table_resize_check");
+    if ($(tableWrap).closest(".table_helper_active").length == 0) {
+        $(tableWrap).wrap("<div class='table_helper_active'></div>");
+        tableWrap.closest(".table_helper_active").style.maxWidth = tableWrap.style.maxWidth;
+        tableWrap.style.maxWidth = "none";
+    }
+
+    // Listeners ---
+    document.addEventListener("mousedown", mDown, false);
+    document.addEventListener("mouseup", function (e) {
+        document.removeEventListener("mousemove", resize, false);
+    }, false);
+    // \Listeners ---
+
+}
+
+
+//  funkce pro editaci tabulky
+function editTable(target) {
+    target.classList.add('active');
+    var nodeCol = Array.prototype.slice.call(target.parentElement.children),
+        nodeRow = Array.prototype.slice.call(target.parentElement.parentElement.children), //
+        colPosition = nodeCol.indexOf(target),
+        rowPosition = nodeRow.indexOf(target.parentElement); //
+
+    /*console.log("X = " + rowPosition)
+    console.log("Y = " + colPosition)*/
+
+    floatElementToElement(document.querySelector('.edit_table.float_edit_content'), target);
+
+    elemTableTdEdit['element'] = target;
+    elemTableTdEdit['activeX'] = colPosition;
+    elemTableTdEdit['activeY'] = rowPosition;
+    elemTableTdEdit['lengthCol'] = nodeCol.length;
+    elemTableTdEdit['lengthRow'] = nodeRow.length;
+    console.log(elemTableTdEdit);
+    saveSelection();
+
+}
+
+// formatovaní editované časti
+function formatDoc(sCmd, sValue) {
+    console.log("format");
+    //document.execCommand("styleWithCSS", true, null);
+    document.execCommand(sCmd, false, sValue);
+
+    if (document.querySelector('.k2editableContent.active')) {
+        var evt = new CustomEvent('keydown');
+        document.querySelector('.k2editableContent.active').dispatchEvent(evt);
+    }
+    saveSelection();
+    styleSelection();
+}
+
+// posuvník pro velikost pisma
+function range(size, recalc) {
+    if (document.querySelector('.js_range_edit')) {
+        var t = document.querySelector('.js_range_edit'),
+            wrap = t.querySelector('.range_wrap_edit'),
+            wrapPositionLeft = wrap.getBoundingClientRect().left,
+            maxMove = wrap.offsetWidth,
+            hand = t.querySelector('.range_hand_edit'),
+            rangeLine = t.querySelector('.range_line_edit'),
+            input = t.querySelector('.range_input_edit'),
+            min = parseInt(input.getAttribute('min')),
+            max = parseInt(input.getAttribute('max')),
+            value,
+            percentStep = 100 / (max - min),
+            accStep = 0,
+            render = false,
+            steps = [],
+            values = [];
+
+        if (!recalc) {
+            for (i = 0; i <= (max - min); i++) {
+                numb = percentStep * i;
+                numb = parseFloat(numb.toFixed(2));
+                steps.push(numb);
+                values.push(min + i);
+            }
+
+            window.addEventListener('triggerRange', recalcRange, false);
+            window.addEventListener('resize', recalcRange, false);
+
+            addListenerMulti(hand, 'mousedown touchstart', function (event) {
+                event.preventDefault();
+                addListenerMulti(document, 'mousemove touchmove', moveHand);
+                addListenerMulti(document, 'mouseup touchend', moveEnd);
+            });
+            addListenerMulti(hand, 'mouseup touchend', moveEnd);
+
+
+            function moveEnd(event) {
+                event.preventDefault();
+                if (document.querySelector('.temp_editor')) {
+                    document.querySelector('.temp_editor').removeAttribute('class');
+                }
+                document.removeEventListener("mousemove", moveHand, false);
+                document.removeEventListener("touchmove", moveHand, false);
+                document.removeEventListener("mouseup", moveEnd, false);
+                document.removeEventListener("touchend", moveEnd, false);
+            }
+
+            function moveHand(event) {
+                if ((typeof event.pageX !== "undefined")) {
+                    event.preventDefault();
+                    x = parseFloat(event.pageX - wrapPositionLeft);
+                } else {
+                    x = parseFloat(event.touches[0].clientX - wrapPositionLeft);
+                }
+
+                x < 0 ? x = 0 : false;
+                x >= (maxMove) ? x = (maxMove) : false;
+
+                position = (x / maxMove) * 100;
+                position = parseFloat(position.toFixed(2));
+                //console.log(position);
+
+
+                if (position >= steps[accStep + 1]) {
+                    accStep++;
+                    render = true;
+                } else if (position <= steps[accStep - 1]) {
+                    accStep--;
+                    render = true;
+                }
+
+                if (render) {
+                    render = false;
+                    //console.log(accStep);
+                    value = values[accStep];
+                    hand.setAttribute('style', 'left: ' + position + '% !important');
+                    rangeLine.setAttribute('style', 'width: ' + position + '% !important');
+                    //rangeLine.style.width = (position) + '%';
+                    input.setAttribute('value', value);
+                    restoreSelection();
+                    formatDoc('fontsize', value);
+                    saveSelection();
+                }
+
+            }
+
+            function recalcRange(event) {
+                wrapPositionLeft = wrap.getBoundingClientRect().left;
+                maxMove = wrap.offsetWidth;
+            }
+        } else {
+            /*hand.style.left = ((percentStep * size) - percentStep) + '%';
+            rangeLine.style.width = ((percentStep * size) - percentStep) + '%';
+*/
+
+            hand.setAttribute('style', 'left: ' + ((percentStep * size) - percentStep) + '% !important');
+            rangeLine.setAttribute('style', 'width: ' + ((percentStep * size) - percentStep) + '% !important');
+            input.setAttribute('value', size);
+            //accStep =
+        }
+
+    }
+}
+
+// zmena velikosti obrazku a vide
+function imageVideoResize() {
+    var element,
+        positionImg,
+        topImage,
+        leftImage,
+        widthImage,
+        heightImage,
+        ratioImage,
+        widthParenth,
+        imageSet = document.querySelector('.image_set_edit'),
+        imageSetHand = document.querySelector('.image_set_edit .point_move_edit'),
+        resize = false,
+        isreverse_edit = false;
+
+
+    addListenerMulti(imageSetHand, 'mousedown touchstart', function (event) {
+        addListenerMulti(document, 'mousemove touchmove', resizeImgStart);
+        addListenerMulti(document, 'mouseup touchend', resizeImgStop);
+    });
+    addListenerMulti(imageSetHand, 'mouseup touchend', resizeImgStop);
+
+
+    function resizeImgStop() {
+        document.querySelector('html').style.cursor = null;
+        document.removeEventListener("mousemove", resizeImgStart, false);
+        document.removeEventListener("touchmove", resizeImgStart, false);
+
+        document.removeEventListener("mouseup", resizeImgStop, false);
+        document.removeEventListener("touchend", resizeImgStop, false);
+
+        imageSetHand.removeEventListener("mouseup", resizeImgStop, false);
+        imageSetHand.removeEventListener("touchend", resizeImgStop, false);
+
+
+        resize = false;
+        isNeedSave();
+        contentEditableElem = document.querySelector('.k2editableContent.active');
+        if (contentEditableElem) {
+            contentEditableElem.classList.add('k2editableContentChanged');
+        }
+    }
+
+    function resizeImgStart(event) {
+        event.preventDefault();
+        if (!resize) {
+            element = document.querySelector('.k2editableContent img.active') || document.querySelector('.k2editableContent .editable_video_content.active');
+            positionImg = element.getBoundingClientRect();
+            styleImage = element.currentStyle || window.getComputedStyle(element);
+            imageFloat = styleImage.cssFloat;
+
+            if (imageFloat === "right") {
+                imageSetHand.classList.add('reverse_edit');
+                isreverse_edit = true;
+            } else {
+                imageSetHand.classList.remove('reverse_edit');
+                isreverse_edit = false;
+            }
+
+            widthImage = positionImg.width;
+            heightImage = positionImg.height;
+            ratioImage = widthImage / heightImage;
+            widthParent = element.parentElement.nodeName === "A" ? element.parentElement.parentElement.offsetWidth : element.parentElement.offsetWidth;
+            resize = true;
+        }
+
+        positionImg = element.getBoundingClientRect();
+        topImage = positionImg.top + window.pageYOffset;
+        leftImage = positionImg.left;
+
+
+        if ((typeof event.pageX !== "undefined")) {
+            if (isreverse_edit) {
+                width = parseFloat(positionImg.width + (leftImage - event.pageX));
+            } else {
+                width = parseFloat(event.pageX - leftImage);
+            }
+        } else {
+            if (isreverse_edit) {
+                width = parseFloat(positionImg.width + (leftImage - event.touches[0].clientX));
+            } else {
+                width = parseFloat(event.touches[0].clientX - leftImage);
+            }
+        }
+
+
+        width < 200 ? width = 200 : false;
+        width > widthParent ? width = widthParent : false;
+        height = width / ratioImage;
+        element.style.width = width + 'px';
+        element.style.height = 'auto';
+
+        if (isreverse_edit) {
+            imageSet.style.width = width + 'px';
+            imageSet.style.height = height + 'px';
+            imageSet.style.right = ((window.outerWidth - (window.innerWidth - document.querySelector('html').clientWidth)) - positionImg.right) + 'px';
+            imageSet.style.left = null;
+            imageSet.style.top = topImage + 'px';
+            document.querySelector('html').style.cursor = "ne-resize";
+        } else {
+            document.querySelector('html').style.cursor = "nw-resize";
+            imageSet.style.width = width + 'px';
+            imageSet.style.height = height + 'px';
+            imageSet.style.left = leftImage + 'px';
+            imageSet.style.top = topImage + 'px';
+        }
+
+    }
+
+}
+
+// sticky controleru
+function stickyControler() {
+    var widthWindow = window.innerWidth,
+        elem = document.elementFromPoint((widthWindow / 2), 1),
+        styleElem,
+        positionCssElem,
+        elemHeight,
+        headerHeight;
+    console.log(elem.parentElement)
+    console.log(elem.parentElement)
+    while (true) {
+
+        if (elem.nodeName === "HTML" || elem.parentElement.nodeName === "BODY") {
+            break;
+        }
+        elem = elem.parentElement;
+
+    }
+
+    styleElem = elem.currentStyle || window.getComputedStyle(elem);
+    positionCssElem = styleElem.position;
+    //elemHeight = (positionCssElem === "fixed") ? elem.offsetHeight : 0;
+    elemHeight = 0;
+
+    window.addEventListener("resize", function () {
+        styleElem = elem.currentStyle || window.getComputedStyle(elem);
+        positionCssElem = styleElem.position;
+        // elemHeight = (positionCssElem === "fixed") ? elem.offsetHeight : 0;
+        elemHeight = 0;
+        headerHeight = elem.offsetHeight;
+    });
+
+
+    document.addEventListener("scroll", function (e) {
+
+        if (controler.classList.contains('active')) {
+            var controlerRect = controler.getBoundingClientRect(),
+                offsetTopControler = controlerRect.top,
+                editableContent = document.querySelector('.k2editableContent.active'),
+                editableRect = editableContent.getBoundingClientRect(),
+                editableTop = editableRect.top + window.pageYOffset - controlerRect.height - 3,
+                editablebottom = editableTop + editableRect.height + 7 + controlerRect.height,
+                positionTop = editableRect.top - elemHeight - controlerRect.height - 28,
+                stopControl = editableRect.top + editableRect.height - elemHeight - controlerRect.height - 28,
+                positionEditableContent = editableRect.top - elemHeight - controlerRect.height,
+                positionBottom = editableRect.top - window.innerHeight + editableRect.height,
+                controlerTopFit = editableRect.top + window.pageYOffset - elemHeight - controlerRect.height - 28;
+
+
+            if ((positionTop < 0) && (stopControl > 0)) {
+                if (positionBottom + controlerRect.height >= 0) {
+                    // Bottom viewportu se nachází v editable elementu
+                    if (controlerTopFit > 0) {
+                        controler.style.top = elemHeight + "px";
+                        controler.querySelector(".editable_editorSwitch_wrap").classList.add("bottom");
+                    } else {
+                        controler.style.top = (window.innerHeight - controlerRect.height) + "px";
+                        controler.querySelector(".editable_editorSwitch_wrap").classList.remove("bottom");
+                    }
+                    controler.style.position = "fixed";
+                    controler.classList.add("sticky");
+                } else {
+                    // Bottom viewportu se nachází mimo editable elemet
+                    controler.querySelector(".editable_editorSwitch_wrap").classList.add("bottom");
+                    controler.style.top = editablebottom + "px";
+                    controler.style.position = "absolute";
+                    controler.classList.add("sticky");
+                }
+            } else if ((positionEditableContent > 0) && (controler.classList.contains('sticky')) && (stopControl > 0)) {
+                controler.querySelector(".editable_editorSwitch_wrap").classList.remove("bottom");
+                controler.style.top = editableTop + "px";
+                controler.style.position = "absolute";
+                controler.classList.remove("sticky");
+            } else if (stopControl < 0) {
+                controler.querySelector(".editable_editorSwitch_wrap").classList.add("bottom");
+                controler.style.top = editablebottom + "px";
+                controler.style.position = "absolute";
+                controler.classList.remove("sticky");
+            }
+        }
+    }, false);
+}
+
+// zobrazení chyby
+function error(text) {
+    var errorElm = document.querySelector('.error_edit'),
+        textElm = document.querySelector('#textError');
+
+    textElm.innerHTML = text;
+    if (timerError === null) {
+        errorElm.classList.add('active');
+        timerError = setTimeout(err, 3000);
+    } else {
+        clearTimeout(timerError);
+        timerError = null;
+        timerError = setTimeout(err, 3000);
+    }
+
+    function err() {
+        errorElm.classList.remove('active');
+        clearTimeout(timerError);
+        timerError = null;
+    }
+}
+
+
+/*START pomocné funkce START*/
+
+function getSelectionParentElement() {
+    var parentEl = null,
+        sel;
+    sel = window.getSelection();
+    if (sel.rangeCount) {
+        parentEl = sel.getRangeAt(0).commonAncestorContainer;
+        if (parentEl.nodeType != 1) {
+            parentEl = parentEl.parentNode;
+        }
+    }
+
+    return parentEl;
+}
+
+function isElement(e, selector) {
+    var target = e.target
+
+    while (target && target.parentElement !== document) {
+
+        if (!target) {
+            return false;
+        }
+
+        if (target.classList.contains(selector)) {
+            return target;
+        }
+
+        target = target.parentElement;
+    }
+}
+
+
+
+function setCaretOnlyText(el, position) {
+    var range = document.createRange();
+    var sel = window.getSelection();
+    range.setStart(el.childNodes[0], position);
+    range.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(range);
+    el.focus();
+}
+
+function selectElement(node) {
+    var sel = window.getSelection(),
+        range = document.createRange();
+    range.selectNode(node);
+    sel.removeAllRanges();
+    sel.addRange(range);
+}
+
+function quantitySelection() {
+    if (window.getSelection) {
+        start = window.getSelection().anchorOffset;
+        end = window.getSelection().extentOffset;
+
+        result = end - start;
+
+        return result == 0 ? false : true;
+    }
+}
+
+function saveSelection() {
+    if (window.getSelection) {
+        if (window.getSelection().anchorNode != null) {
+            savedRange = window.getSelection().getRangeAt(0);
+        }
+    } else if (document.selection) {
+        savedRange = document.selection.createRange();
+    }
+}
+
+function restoreSelection() {
+    if (savedRange != null) {
+        //console.log(savedRange);
+        if (window.getSelection) {
+            var s = window.getSelection();
+            if (s.rangeCount > 0)
+                s.removeAllRanges();
+            s.addRange(savedRange);
+        } else if (document.createRange) {
+            window.getSelection().addRange(savedRange);
+        } else if (document.selection) {
+            savedRange.select();
+        }
+    }
+}
+
+function removeSelection() {
+    var s = window.getSelection();
+    if (s.rangeCount > 0)
+        s.removeAllRanges();
+}
+
+function createTable(r, c, h) {
+    var table = '<div style="max-width: 100%;overflow-x: auto;overflow-y:hidden;white-space:nowrap;" class="table_wrapper"><table class="edit_table">';
+    for (x = 0; x < r; x++) {
+        row = '<tr>';
+        for (y = 0; y < c; y++) {
+            if (h && (x == 0)) {
+                row = row + '<th><br></th>';
+            } else {
+                row = row + '<td><br></td>';
+            }
+        }
+        row = row + '</tr>';
+        table = table + row;
+    }
+    table = table + '</table></div><br>';
+    return table;
+}
+
+function q(elClass, action, fn) {
+    var el = document.querySelectorAll(elClass),
+        elLength = el.length;
+
+    for (i = 0; i < elLength; i++) {
+        el[i].addEventListener(action, fn, false);
+    }
+}
+
+function addListenerMulti(element, eventNames, listener) {
+    //console.log(element);
+    if (element) {
+        var events = eventNames.split(' ');
+        for (var i = 0, iLen = events.length; i < iLen; i++) {
+            element.addEventListener(events[i], listener, false);
+        }
+    }
+}
+
+function triggerRange() {
+    var evt = new CustomEvent('triggerRange');
+    window.dispatchEvent(evt);
+}
+
+function floatElementToElement(elementFlaot, elementTarget) {
+    console.log(elementFlaot);
+    var positionElmTarget = elementTarget.getBoundingClientRect();
+
+    elementFlaot.classList.add('active');
+    topEditLink = positionElmTarget.top + positionElmTarget.height + window.pageYOffset;
+    leftEditLink = positionElmTarget.left + (positionElmTarget.width / 2) - (elementFlaot.offsetWidth / 2);
+
+    elementFlaot.style.left = leftEditLink + "px";
+    elementFlaot.style.top = topEditLink + "px";
+}
+
+function getComputedStyleProperty(el, propName) {
+    if (window.getComputedStyle) {
+        return window.getComputedStyle(el, null)[propName];
+    } else if (el.currentStyle) {
+        return el.currentStyle[propName];
+    }
+}
+
+function styleSelection() {
+    var el = document.querySelectorAll('.set_active'),
+        elLength = el.length,
+        formatValue = document.queryCommandValue('formatblock'),
+        fontSizeValue = document.queryCommandValue('fontsize'),
+        colorValue = document.queryCommandValue('forecolor');
+
+    if (!(fontSizeValue >= 1 && fontSizeValue <= 7)) {
+        var containerEl, sel;
+        if (window.getSelection) {
+            sel = window.getSelection();
+            if (sel.rangeCount) {
+                containerEl = sel.getRangeAt(0).commonAncestorContainer;
+                // Make sure we have an element rather than a text node
+                if (containerEl.nodeType == 3) {
+                    containerEl = containerEl.parentNode;
+                }
+            }
+        } else if ((sel = document.selection) && sel.type != "Control") {
+            containerEl = sel.createRange().parentElement();
+        }
+
+        if (containerEl) {
+            fontSizeValue = getComputedStyleProperty(containerEl, "fontSize");
+            // var colour = getComputedStyleProperty(containerEl, "color");
+        }
+        switch (fontSizeValue) {
+            case "10px":
+                fontSizeValue = 1;
+                break;
+            case "13px":
+                fontSizeValue = 2;
+                break;
+            case "16px":
+                fontSizeValue = 3;
+                break;
+            case "18px":
+                fontSizeValue = 4;
+                break;
+            case "24px":
+                fontSizeValue = 5;
+                break;
+            case "32px":
+                fontSizeValue = 6;
+                break;
+            case "48px":
+                fontSizeValue = 7;
+                break;
+            default:
+                fontSizeValue = 2;
+                break;
+        }
+    }
+
+    range(fontSizeValue, true);
+
+    for (i = 0; i < elLength; i++) {
+        var elem = el[i],
+            type = elem.getAttribute('data-type'),
+            value = elem.getAttribute('data-value');
+
+        elem.classList.remove('active_style');
+
+
+        if (type == "formatblock") {
+            if (value == formatValue) {
+                elem.classList.add('active_style');
+            }
+        } else if (type == "forecolor") {
+            if (value == colorValue) {
+                elem.classList.add('active_style');
+            }
+        } else {
+            if (document.queryCommandState(type)) {
+                elem.classList.add('active_style');
+                //console.log(elem);
+                //console.log(type);
+            }
+        }
+    }
+
+    /*queryCommandValue('formatblock')*/
+
+    //console.log(document.queryCommandState('formatblock'));
+
+
+    //console.log(document.queryCommandValue('forecolor'));
+    //console.log(document.queryCommandState('italic'));
+}
+
+/*END pomocné funkce END*/
+
+
+/* START Ukládání START */
+function saving() {
+    document.querySelector('.editable_save').addEventListener('click', function (e) {
+        e.preventDefault();
+        console.log('saving');
+        document.querySelectorAll('.k2editableContent').forEach(function (el) {
+              el.querySelectorAll('.editable_video_content').forEach(function (t) {
+                iframe = t.querySelector('iframe');
+                iframe.dataset.src = iframe.src;
+                iframe.dataset.k2Consent = "marketing";
+                iframe.removeAttribute('src');
+            });
+
+            toVisualEditor(el);
+            removeLayoutActive(el)
+        });
+
+        document.querySelectorAll('.k2editableContentChanged [style]').forEach(function (element) {
+            element.classList.add('k2StyleEditor');
+        });
+        document.querySelector('#k2editableSave').click();
+    }, false)
+
+    document.querySelector('.saving_editable').addEventListener('click', function (e) {
+        e.preventDefault();
+        document.querySelector('.saving_editable').classList.remove('active');
+    }, false)
+
+
+    var timerSaveMsg = null;
+
+    $(document).on('k2trigger', function (e, data) {
+
+        console.log(data);
+        if ((data.modul == "k2editable")) {
+            if ((data.action == "save") && (data.state == "start")) {
+                document.querySelector('.editable_save').style.transition = "none";
+                document.querySelector('.editable_save').style.opacity = "0";
+                document.querySelector('.editable_save').setAttribute('disabled', '');
+                document.querySelector('.saving_editable').classList.add('active');
+
+            } else if ((data.action == "save") && (data.state == "end")) {
+                document.querySelector('.editable_save').style.transition = "";
+                document.querySelector('.editable_save').style.opacity = "";
+                if (!data.fail) {
+                    document.querySelector('.saving_editable').classList.remove('active');
+
+                    window.onbeforeunload = null;
+                    needSave = false;
+
+                    document.querySelector('.saving_editable').classList.add('active', 'save_done');
+
+                    timerSaveMsg = setTimeout(function () {
+                        document.querySelector('.saving_editable').style.opacity = "0";
+                        setTimeout(function () {
+                            document.querySelector('.saving_editable').classList.remove('active', 'save_done');
+                            document.querySelector('.saving_editable').style.opacity = "";
+                            if (editingInK2) {
+                                disableEditInK2();
+                            }
+                        }, 300);
+                        clearTimeout(timerSaveMsg);
+                    }, 2500);
+
+                } else {
+                    document.querySelector('.saving_editable').classList.remove('active');
+                    console.log('ChYBA');
+                }
+                document.querySelectorAll('.k2editableContent').forEach(function (el) {
+                    el.querySelectorAll('.editable_video_content').forEach(function (t) {
+                        iframe = t.querySelector('iframe');
+                        iframe.src = iframe.dataset.src;
+                    });
+                });
+            }
+
+        }
+    });
+}
+
+/* END Ukládání END*/

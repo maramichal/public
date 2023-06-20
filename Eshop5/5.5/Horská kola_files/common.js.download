@@ -1,0 +1,780 @@
+/*pro specialní k2trigger je idealní použít "e.stopImmediatePropagation();" a volat script nad standardním např.
+
+$(document).on('k2trigger', function (e, msg) {
+     if (msg.modul === "m5orderProductBuyPrebasket") {
+         e.stopImmediatePropagation();
+         console.error('special')
+     }
+ });
+ */
+
+const doc = document;
+var ajaxPopup = "";
+var parentContentPopup = "";
+
+document.addEventListener("DOMContentLoaded", function (event) {
+    $(document).on('k2trigger', hiddenMessageTime)
+});
+
+polyfill();
+jsPopup();
+jsToggle();
+jsLazyImg();
+jsLogOut();
+jsGallery();
+
+
+/*
+.el(selector) = querySelector ale pokud se element nenajde vrátí prázdný div. Parementr exist vraci true/false pokud element existuje nebo ne
+.elAll(selector) = querySelectorAll
+.trigger(type) =  "type" = type triggeru (change, resize, atd.) na elemenetu 
+.scrollAnimation(el, offset) =  el - element na který se má doscrollovat , offset - číselná hodnota offsetu
+.replaceAt(index, replacement) = funkce nahradí daný sting v stringu od určité pozice (např.: "test--test".replaceAt(1,'kolo') === 'tkolo-test')
+.isVisible() = funkce vratí hodnotu true/false podle toho jestli je element skrytý pomoci display: none 
+.elementListner(el, action, fn) = listner, který musí byt definovaný pouze jednou i když se něco dočte ajaxem. el - css selektor (pouze jednourovnová třída), action - typ listneru (click, change, atd.), fn = funkce, která se má zavolat po vyvolání listneru
+.posIndex() = funkce vratí číselnou pozici elementu v dané urovni
+*/
+function polyfill() {
+    var elTemp = document.createElement('div');
+
+    HTMLDocument.prototype.el = elFn;
+    Element.prototype.el = elFn;
+
+    HTMLDocument.prototype.trigger = triggerFn;
+    Element.prototype.trigger = triggerFn;
+    window.trigger = triggerFn;
+    HTMLDocument.prototype.customListener = customListenerFn;
+
+    HTMLDocument.prototype.allEl = allElFn;
+    Element.prototype.allEl = allElFn;
+
+    Element.prototype.scrollAnimation = scrollAnimFn;
+
+
+    if (!String.prototype.replaceAt) {
+        String.prototype.replaceAt = function (index, replacement) {
+            return this.substr(0, index) + replacement + this.substr(index + replacement.length);
+        }
+    }
+
+    if (!Element.prototype.isVisible) {
+        Element.prototype.isVisible = function () {
+            if (this.offsetWidth || this.offsetHeight || this.getClientRects().length) {
+                return true;
+            } else {
+                return false;
+            }
+        };
+    }
+
+    if (!HTMLDocument.prototype.elementListner) {
+        var data = {};
+        HTMLDocument.prototype.elementListner = function (el, action, fn, onlyOneFn) {
+            onlyOneFn = (onlyOneFn == undefined ? false : onlyOneFn);
+
+            if (el != undefined && action != undefined && fn != undefined) {
+
+                if (el.charAt(0) == '.') {
+                    /*console.log(data[action]); 
+                     console.log(data); */
+
+
+                    el.split(',').forEach(function (selector) {
+                        let dataItem = [];
+                        let dataSelector = [];
+                        selector = selector.trim();
+
+                        if (selector.charAt(0) == '.') {
+                            selector = selector.substring(1);
+
+                            if (!data[action]) {
+                                dataSelector.push(selector);
+                                dataItem.push(selector);
+                                dataItem.push([]);
+                                dataItem[1].push(fn);
+                                data[action] = [];
+                                data[action].push(dataSelector);
+                                data[action].push(dataItem);
+
+                                if (action == "change") {
+                                    window.addEventListener(action, callFunction, false);
+                                } else if (action == "scroll") {
+                                    window.addEventListener(action, callFunction, {
+                                        capture: true,
+                                        passive: true
+                                    });
+                                } else {
+                                    document.addEventListener(action, callFunction, false);
+                                }
+
+                            } else {
+                                let i = 0;
+                                let selectorInArrayIndex = data[action][0].indexOf(selector);
+                                if (selectorInArrayIndex != -1) {
+                                    // existuje element
+                                    //console.log('je tam');
+                                    if (onlyOneFn) {
+                                        data[action][selectorInArrayIndex + 1][1] = [];
+                                    }
+                                    data[action][selectorInArrayIndex + 1][1].push(fn);
+                                } else {
+                                    // neexistuje element
+                                    //console.log('neni tam');
+                                    dataItem.push(selector);
+                                    dataItem.push([]);
+                                    dataItem[1].push(fn);
+                                    data[action][0].push(selector);
+                                    data[action].push(dataItem);
+                                }
+                            }
+                        }
+                    });
+                    // console.log(data);
+
+
+                } else {
+                    console.warn('Only class selector');
+                }
+            } else {
+                console.error('error parametrs');
+            }
+
+
+
+            function callFunction(e) {
+                //console.log(data); 
+                var type = e.type;
+                var target = e.target ? e.target : e.srcElement;
+                //var path = e.path;
+                var isExist = false;
+                var selectorType = data[type];
+                var el;
+                var elIndex;
+                var classListEl;
+                var classListElLength;
+                //console.log(data); 
+                //console.log(selectorType); 
+
+                // look for parent div
+                for (target = e.target; target && target != document; target = target.parentNode) {
+                    if (isExist)
+                        break;
+
+                    classListEl = target.classList;
+                    if (classListEl) {
+                        classListElLength = classListEl.length;
+                        for (let x = 0; x < classListElLength; x++) {
+                            elIndex = selectorType[0].indexOf(classListEl[x]);
+                            if (elIndex != -1) {
+                                el = target;
+                                let functions = selectorType[elIndex + 1][1],
+                                    functionsLength = functions.length;
+
+
+                                for (let i = 0; i < functionsLength; i++) {
+                                    functions[i].call(el, e);
+                                }
+                                /*if(stopIsFirstExist){
+                                 console.log('testtttttt');
+                                 isExist = true;
+                                 break;
+                                 }*/
+                            }
+                        }
+                    }
+                }
+
+
+                /*                if (isExist) {
+                 let functions = selectorType[elIndex][1],
+                 functionsLength = functions.length;
+                 
+                 
+                 for (let i = 0; i < functionsLength; i++) {
+                 functions[i].call(el, e);
+                 }
+                 }*/
+            }
+        };
+    }
+
+    if (!('remove' in Element.prototype)) {
+        Element.prototype.remove = function () {
+            if (this.parentNode) {
+                this.parentNode.removeChild(this);
+            }
+        };
+    }
+
+    if (!Element.prototype.matches) {
+        Element.prototype.matches = Element.prototype.msMatchesSelector ||
+            Element.prototype.webkitMatchesSelector;
+    }
+
+    if ('NodeList' in window && !NodeList.prototype.forEach) {
+        console.info('polyfill for IE11');
+        NodeList.prototype.forEach = function (callback, thisArg) {
+            // console.log('t')
+            thisArg = thisArg || window;
+            for (var i = 0; i < this.length; i++) {
+                callback.call(thisArg, this[i], i, this);
+            }
+        };
+    }
+
+    if (!Element.prototype.closest) {
+        Element.prototype.closest = function (s) {
+            var el = this;
+
+            do {
+                if (el.matches(s))
+                    return el;
+                el = el.parentElement || el.parentNode;
+            } while (el !== null && el.nodeType === 1);
+            return null;
+        };
+    }
+
+    if (!Element.prototype.posIndex) {
+        Element.prototype.posIndex = function (s) {
+            var el = this;
+            if (!el) return -1;
+            var i = 0;
+            while (el = el.previousElementSibling) {
+                i++;
+            }
+            return i;
+        };
+    }
+
+    if (!String.prototype.contains) {
+        String.prototype.contains = function () {
+            return String.prototype.indexOf.apply(this, arguments) !== -1;
+        };
+    }
+
+
+
+
+
+    // fn start
+    function scrollAnimFn(el, offset) {
+        var parentNode = this;
+        var offset = offset === undefined ? 0 : offset;
+        var y = 0;
+
+        if (parentNode === null) {
+            return 0;
+        }
+
+        if (parentNode.nodeName === "HTML") {
+            y = el.getBoundingClientRect().top - parentNode.getBoundingClientRect().top - offset;
+        } else {
+            y = el.getBoundingClientRect().top - parentNode.getBoundingClientRect().top + parentNode.scrollTop - offset;
+        }
+
+        parentNode.scrollTo({
+            top: y,
+            behavior: 'smooth'
+        });
+
+    }
+
+    function triggerFn(type) {
+        if (navigator.userAgent.indexOf('MSIE') !== -1 || navigator.appVersion.indexOf('Trident/') > 0) {
+            var evt = document.createEvent('UIEvents');
+            evt.initUIEvent(type, true, false, this, 0);
+            this.dispatchEvent(evt);
+        } else {
+            this.dispatchEvent(new Event(type, {
+                "bubbles": true
+            }));
+        }
+
+    }
+
+    function customListenerFn(type, data) {
+        if (data == "") {
+            console.warn('Listener not data');
+        }
+        const event = new CustomEvent(type, {
+            bubbles: true,
+            detail: data
+        });
+
+        this.dispatchEvent(event)
+    }
+
+    function elFn(selector) {
+        element = this.querySelector(selector)
+        if (element) {
+            element.exist = true;
+            return element;
+        } else {
+            //console.error('Element not exist = ' + selector);
+            elTemp = document.createElement('div');
+            elTemp.exist = false;
+            return elTemp;
+        }
+    }
+
+    function allElFn(selector) {
+        return this.querySelectorAll(selector);
+    }
+    // fn end
+}
+
+
+
+/*
+ .js_popup = vytvoření popupu, pokud má třídu js_no_ajax, tak hledá obsah na aktualní stránce, jinak se obsah dočíta ze stránky, která je v href atributu.
+     data-selector = obsah selektrou, který se má vložit do popupu. Pokud element má atribut data-title, tak se doplní do hlavičky popupu 
+     data-class = třida, která se přidá na element .popup_wrap, pro úpravu popupu  
+*/
+function jsPopup() {
+
+    document.elementListner('.js_popup_close', 'click', function (e) {
+        childrenElement = this.closest('.popup.active').el('.popup_content').children;
+        var popupEl = this.closest('.popup.active');
+
+        while (childrenElement.length !== 0) {
+            parentContentPopup.appendChild(childrenElement[0]);
+        }
+
+        popupEl.remove();
+    });
+
+    document.elementListner('.js_popup', 'click', function (e) {
+        e.preventDefault();
+        var url = this.getAttribute('href'),
+            selector = this.getAttribute('data-selector'),
+            classForPopup = this.getAttribute('data-class');
+        doc.customListener('popup', {
+            url: url,
+            selector: selector,
+            state: 'start'
+        });
+
+
+        if (!this.classList.contains('js_no_ajax')) {
+            if (ajaxPopup !== "") {
+                ajaxPopup.abort();
+            }
+            loading(true);
+            ajaxPopup = new XMLHttpRequest();
+            ajaxPopup.onreadystatechange = function () {
+                if (this.readyState === XMLHttpRequest.DONE) {
+                    var status = this.status;
+                    if (status === 0 || (status >= 200 && status < 400)) {
+                        var popupTitle = this.responseXML.el(selector).getAttribute('data-title');
+
+                        loading(false);
+                        popup(classForPopup, popupTitle, this.responseXML.el(selector));
+                        doc.customListener('popup', {
+                            url: url,
+                            selector: selector,
+                            state: 'end',
+                            fail: false
+                        });
+                    } else {
+                        loading(false);
+                        doc.customListener('popup', {
+                            url: url,
+                            selector: selector,
+                            state: 'end',
+                            fail: true
+                        });
+                    }
+                }
+            };
+            ajaxPopup.responseType = "document";
+            ajaxPopup.open("GET", url, true);
+            ajaxPopup.send();
+        } else {
+            var popupContentElement = doc.el(selector);
+            var popupTitle = popupContentElement.getAttribute('data-title');
+
+            popup(classForPopup, popupTitle, popupContentElement);
+            doc.customListener('popup', {
+                url: url,
+                selector: selector,
+                state: 'end',
+                fail: false
+            });
+        }
+    });
+
+}
+
+
+
+/*
+    classString = třida, která se přidá na element .popup_wrap, pro úpravu popupu (není povinny)
+    title = název popup, která se doplní do hlavičky popupu (není povinny)
+    content = obsah popupu. Musí to být typ "object" (povinné)
+    
+    return = element popupu nebo "false" pokud content chybí nebo není "object"
+*/
+function popup(classString, title, content) {
+    if (typeof content !== 'object') {
+        console.error("Popup content is not 'object'");
+        return false;
+    }
+
+    var tempElementPopup = document.createElement('div'),
+        popupContent = '<div class="popup_bg js_popup_close"></div><div class="popup_wrap ' + classString + '"><div class="popup_header"><button class="js_popup_close popup_close_btn"><svg class="ico ico-cross"><use xlink:href="#ico-cross"></use></svg></button></div><div class="popup_content"></div></div>',
+        childrenElement = content.children; //content.cloneNode(true).children;
+
+    parentContentPopup = content;
+
+    doc.el('.popup.active').remove();
+
+    tempElementPopup.classList.add('popup');
+    tempElementPopup.insertAdjacentHTML('beforeend', popupContent);
+
+    if (title !== null) {
+        tempElementPopup.el('.popup_header').setAttribute('data-title', title);
+    }
+
+
+    while (childrenElement.length !== 0) {
+        tempElementPopup.el('.popup_content').appendChild(childrenElement[0]);
+    }
+
+    tempElementPopup.classList.add('active');
+    doc.body.insertAdjacentElement('beforeend', tempElementPopup);
+    window.trigger('resize');
+    return tempElementPopup;
+}
+
+
+
+
+/*
+    .js_toggle 
+    data-type = "next" nebo "selector"
+    data-selector = lze definovat jeden nebo více selektoru. Pokud je data-type="selector" tak je tohle povinné
+    data-tabs = id pro seznam tabu 
+    js_isFloat = pokud má byt otevření plovoucí
+*/
+function jsToggle() {
+    /* transitionend a animationend = pokud existuje css styl transition nebo animation, tak zavolat resize po animaci/transition */
+
+
+    document.elementListner('.js_toggle', 'click', function (e) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        var tabId = this.getAttribute('data-tabs') == "" ? null : this.getAttribute('data-tabs');
+        var isTab = tabId == null ? false : true;
+        var isActive = this.classList.contains('active');
+
+        if (isTab) {
+            doc.el('[data-tabs="' + tabId + '"].active').triggerClick();
+        }
+
+        if (doc.el('.js_isFloat.active') !== this) {
+            doc.el('.js_isFloat.active').triggerClick();
+        }
+
+        if (!(this.classList.contains("js_closable") && isActive))
+            this.triggerClick();
+
+        window.trigger('resize');
+
+    });
+
+    document.addEventListener('click', function (e) {
+        var el = e.target.classList.contains('active') || e.target.closest('.active');
+        if (!el) {
+            doc.el('.js_isFloat.active').triggerClick();
+        }
+    });
+
+    HTMLDocument.prototype.triggerClick = triggerClickFn;
+    Element.prototype.triggerClick = triggerClickFn;
+
+    function triggerClickFn() {
+        var type = this.getAttribute('data-type');
+        var selector = this.getAttribute('data-selector');
+
+        if (type == "next") {
+            this.classList.toggle('active');
+            this.nextElementSibling.classList.toggle('active');
+
+            if (selector !== null && selector !== "") {
+                doc.allEl(selector).forEach(function (item) {
+                    item.classList.toggle('active');
+                });
+            }
+        } else if (type == "previous") {
+            this.classList.toggle('active');
+            this.previousElementSibling.classList.toggle('active');
+
+            if (selector !== null && selector !== "") {
+                doc.allEl(selector).forEach(function (item) {
+                    item.classList.toggle('active');
+                });
+            }
+        } else if (type == "selector") {
+            this.classList.toggle('active')
+            if (selector == "") {
+                console.error('data-selector is empty');
+                return;
+            }
+            doc.allEl(selector).forEach(function (item) {
+                item.classList.toggle('active')
+            });
+        }
+    }
+
+}
+
+
+
+
+/*
+    state = true - má se zobrazit, false - skryt loading
+    animaci loadingu lze změnit, pokud před zavolaním teto funkce bude existovat proměnná var customLoader = '', v které bude html. Animace se změní po dobu existence proměnné. Validace proměnné se neřeší. 
+*/
+function loading(state) {
+    var htmlLoader = typeof customLoader === 'undefined' ? '<div class="loader"><div></div></div>' : customLoader;
+    var loadingContent = '<div class="loading_wrap"><div class="loading_content">' + htmlLoader + '</div></div>';
+
+    if (state) {
+        if (!doc.el('.loading_wrap').exist) {
+            doc.body.insertAdjacentHTML('beforeend', loadingContent);
+        }
+    } else {
+        doc.el('.loading_wrap').remove();
+    }
+}
+
+
+
+/*
+ .js_lazy_img
+ data-src = url obrázku, který se má načíst
+ 
+ Po dočtení odstraní element loading, pokud ho najde. Element loading, hledá z rodiče.
+*/
+function jsLazyImg() {
+    if (typeof window.jsLazyImg.start === 'undefined') {
+        function loadImage(el, fn) {
+            var src = el.getAttribute('data-src');
+
+            if (src != null) {
+                el.addEventListener('load', function () {
+
+                    var elLoading = this.parentNode.el('.loading');
+                    if (elLoading.exist) {
+                        elLoading.parentNode.removeChild(elLoading);
+                    }
+                    this.classList.add('load');
+                });
+                el.addEventListener('error', function () {
+                    this.classList.add('lazy_load_error')
+                    this.src = "data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==";
+                    var elLoading = this.parentNode.el('.loading');
+                    if (elLoading.exist) {
+                        elLoading.parentNode.removeChild(elLoading);
+                    }
+                    this.classList.add('lazy_load_error');
+                });
+
+                el.src = src;
+            }
+        }
+
+        function elementInViewport(el) {
+            var rect = el.getBoundingClientRect();
+            if (el.offsetWidth || el.offsetHeight || el.getClientRects().length) {
+                return (rect.top >= 0 && rect.left >= 0 && rect.top <= (window.innerHeight || document.documentElement.clientHeight) + 100)
+            } else {
+                return false;
+            }
+        }
+
+        function processScroll() {
+            var images = doc.allEl('img.js_lazy_img:not(.load):not(.lazy_load_error):not(.swiper-lazy-loaded)');
+            for (var i = 0; i < images.length; i++) {
+                if (!!!images[i].closest('.swiper-slide')) {
+                    if (elementInViewport(images[i])) {
+                        if (!images[i].classList.contains('lazy_init')) {
+                            console.log('test')
+                            images[i].classList.add('lazy_init');
+                            loadImage(images[i]);
+                        }
+                    }
+                }
+            };
+        };
+
+
+        processScroll();
+        window.addEventListener('scroll', processScroll, {
+            capture: true,
+            passive: true
+        });
+        window.addEventListener('resize', processScroll);
+        window.jsLazyImg.start = true;
+    }
+}
+
+
+
+/* 
+    V modulu, která triggne "k2trigger" se vyhledá ".js_visible_time" a pokud se najde a je viditelný, tak si vezme čas z "data-time" (v ms) a po této době hlášku skryju.
+*/
+function hiddenMessageTime(e, msg) {
+    var modul = msg.modul;
+
+    switch (msg.modul) {
+        case 'k2fx5couponAdd':
+            modul = 'k2fx [data-k2="coupon"]';
+            break;
+    }
+
+
+    doc.allEl('.' + modul + ' .js_visible_time').forEach(function (message) {
+        if (message.isVisible()) {
+            time = message.getAttribute('data-time');
+            if (message.classList.contains('timeIsSet')) {
+                return;
+            }
+
+            if (!isNaN(time) && time) {
+                setTimeout(function () {
+                    message.classList.remove('timeIsSet');
+                    message.style.display = "none"
+                }, time);
+                message.classList.add('timeIsSet')
+            }
+        }
+    });
+}
+
+
+
+/*
+    galerie musí být zabalená do elementu s třídou 'gallery_js' a odkaz na obrázek musí bít třídu 'gallery_item_js'. Jestli se v odkazu najde tag "figcaption", tak se z něj vezme titulek obrázeku
+*/
+
+
+function jsGallery() {
+    var gallerySwiper = null;
+    document.elementListner('.gallery_item_js', 'click', function (e) {
+        //console.log('click Gallery');
+        e.preventDefault();
+        var galleryWrap = this.closest('.gallery_js'),
+            actualUrl = this.getAttribute('href'),
+            actaulSlide = this.closest('.swiper-slide').posIndex(),
+            items = galleryWrap.allEl('.gallery_item_js'),
+            sliders = "";
+
+        items.forEach(function (t) {
+            var url = t.getAttribute('href'),
+                title = t.el('figcaption').textContent;
+            sliders = sliders + '<div class="swiper-slide gallery_slide"><div class="gallery_title">' + title + '</div><div class="gallery_img"><img src="#" data-src="' + url + '" class="js_lazy_img" alt="' + title + '"/><span class="loading loader"><span></span></span></div></div>';
+        });
+        doc.body.insertAdjacentHTML('beforeend', '<div class="gallery" style="display: none;"><label class="mobile_gallery"><input type="checkbox"><div class="gallery_pagination_wrap"><span class="btn_gallery_menu"><span></span></span><div class="gallery_pagination_container"><div class="gallery_pagination"></div></div></div></label><button class="gallery_close"></button><div class="gallery_container swiper-container"><button class="gallery_prev"></button><button class="gallery_next"></button><div class="swiper-wrapper">' + sliders + '</div></div></div>');
+
+        gallerySwiper = new Swiper(doc.el('.gallery .gallery_container'), {
+            speed: 400,
+            initialSlide: actaulSlide,
+            roundLengths: true,
+            preloadImages: false,
+            mousewheel: true,
+            on: {
+                afterInit: function () {
+                    doc.el('.gallery').style.display = "";
+                    // console.log(actaulSlide);
+                    // console.log(doc.el('.gallery_pagination_item:nth-child(' + actaulSlide + ')'));
+                    doc.el('.gallery_pagination_container').scrollAnimation(doc.el('.gallery_pagination_item.active'));
+                },
+                slideChange: function () {
+                    this.el.el('.gallery_slide.swiper-slide-zoomed').classList.remove('swiper-slide-zoomed');
+                    doc.el('.mobile_gallery input').checked = false;
+                },
+                slideChangeTransitionStart: function (a, b) {
+                    doc.el('.gallery_pagination_container').scrollAnimation(doc.el('.gallery_pagination_item.active'));
+                }
+            },
+            lazy: {
+                elementClass: 'js_lazy_img',
+                loadPrevNext: true,
+                preloaderClass: 'loading'
+            },
+            zoom: {
+                toggle: true,
+                maxRatio: 1.5,
+                containerClass: 'gallery_img'
+            },
+            navigation: {
+                nextEl: '.gallery_next',
+                prevEl: '.gallery_prev'
+            },
+            pagination: {
+                el: '.gallery_pagination',
+                type: 'bullets',
+                clickable: true,
+                bulletClass: 'gallery_pagination_item',
+                bulletActiveClass: 'active',
+                renderBullet: function (index, className) {
+                    var index = index + 1,
+                        bgUrl = this.el.el('.gallery_slide:nth-child(' + index + ') img').getAttribute('data-src');
+                    return '<div class="' + className + '"><div><img src="' + bgUrl + '" class="js_lazy_img"></div></div>';
+                }
+            }
+        });
+
+        doc.el('.gallery_close').addEventListener('click', closeGallery);
+        doc.addEventListener("keyup", keyControl);
+
+    });
+
+    function closeGallery() {
+        doc.el('.gallery').remove();
+        gallerySwiper.destroy();
+        doc.el('.gallery_close').removeEventListener('click', closeGallery);
+        doc.removeEventListener("keyup", keyControl);
+    };
+
+    function keyControl(e) {
+        var keycode = ((typeof e.keyCode != 'undefined' && e.keyCode) ? e.keyCode : e.which);
+        if (keycode === 27) {
+            closeGallery();
+        }
+        if (keycode === 37) {
+            gallerySwiper.slidePrev();
+        }
+        if (keycode === 39) {
+            gallerySwiper.slideNext();
+        }
+    }
+
+
+}
+
+
+
+function jsLogOut() {
+    doc.el(".js_logout").addEventListener("click", function () {
+        k2m2.tryLogout();
+        $(document).on('k2trigger', function (e, msg) {
+            if (msg.state == "end" && msg.action == "logout")
+                location.reload();
+        });
+
+    });
+
+}
+
+
+function addListenerMulti(element, eventNames, listener) {
+    if (element) {
+        var events = eventNames.split(' ');
+        for (var i = 0, iLen = events.length; i < iLen; i++) {
+            element.addEventListener(events[i], listener, false);
+        }
+    }
+}

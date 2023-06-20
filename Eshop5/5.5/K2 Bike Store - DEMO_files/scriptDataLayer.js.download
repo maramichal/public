@@ -1,0 +1,189 @@
+document.addEventListener("changeCookieSetting", function (e) {
+    if(!e.cookiePermission.analytics){
+        return false; 
+    }
+    
+    if (typeof dataLayer !== 'undefined' && typeof analyticsDataLayer !== 'undefined' && typeof analyticsDataLayer.gtag  !== 'undefined') {
+        var timerAutocomplete = null;
+        console.log(dataLayer);
+
+        // katalog
+        if (analyticsDataLayer.gtag.m3products) {
+            gtag_send('view_item_list', {
+                "items": analyticsDataLayer.gtag.m3products.items
+            })
+        }
+
+        // vyhledavní - stránka
+        if (analyticsDataLayer.gtag.m4search) {
+            gtag_send('view_item_list', {
+                "items": analyticsDataLayer.gtag.m4search.items
+            })
+        }
+
+        // detail produktu
+        if (analyticsDataLayer.gtag.m4detail) {
+            gtag_send('view_item', {
+                "items": analyticsDataLayer.gtag.m4detail.items
+            })
+        }
+
+        $(document).on('k2trigger', function (e, msg) {
+            if (msg.modul === 'm5orderProductBuy' && msg.action === 'add' && msg.state === 'end' && !msg.fail) {
+                if (msg.data) {
+                    if (msg.data.analytics) {
+                        gtag_send("add_to_cart", msg.data.analytics);
+                    }
+                }
+            }
+            if (msg.modul === 'k2fx4search' && msg.action === 'load' && msg.state === 'end' && !msg.fail) {
+                //console.log('test'); 
+                clearTimeout(timerAutocomplete);
+                timerAutocomplete = setTimeout(function () {
+                    if (!!document.querySelector('.k2searchHref')) {
+                        /*var hrefAutocomplete = document.querySelector('.k2searchHref').href.split(location.origin)[1];
+                        pageViewGA(document.querySelector('.k2searchHref').getAttribute('data-k2-title'), location.origin, hrefAutocomplete) */
+
+                        if (!!document.querySelector(".k2fx4search .k2noItem").getClientRects().length) {
+                            var searchQuery = document.querySelector('.k2fx4search .k2productSearch').value;
+                            gtag('event', "ZeroResults", {
+                                'event_category': "searchAutocomplete",
+                                'event_label': searchQuery ? searchQuery : "Blank",
+                                'value': 1
+                            });
+
+                        } else if (!!document.querySelector(".k2fx4search .k2ifItem").getClientRects().length) {
+                            console.log('nalezeno');
+                            var searchQuery = document.querySelector('.k2fx4search .k2productSearch').value;
+                            gtag('event', "Results", {
+                                'event_category': "searchAutocomplete",
+                                'event_label': searchQuery ? searchQuery : "Blank",
+                                'value': 1
+                            });
+                        }
+                    }
+                }, 300);
+            }
+            /*if (msg.modul === 'm5orderProductBuy' && msg.action === 'set' && msg.state === 'end' && !msg.fail) {
+                if (msg.data.analytics) {
+                    gtag_send("add_to_cart", msg.data.analytics);
+                }
+            }*/
+            // smazat položku v košíku
+            if (msg.modul === 'k2fx5basket' && msg.action === 'del' && msg.state === 'end' && !msg.fail) {
+                if (msg.data.analytics) {
+                    gtag_send("remove_from_cart", msg.data.analytics);
+                }
+            }
+            // smazat cely košík
+            if (msg.modul === 'k2fx5basket' && msg.action === 'empty' && msg.state === 'end' && !msg.fail) {
+                if (msg.data.analytics) {
+                    gtag_send("remove_from_cart", msg.data.analytics);
+                }
+            }
+        });
+
+        // 1 krok kosiku
+        if (document.querySelector('.basket_step_1 ') && analyticsDataLayer !== undefined) {
+            analyticsDataLayer.gtag.m5basket.checkout_step = 1;
+            gtag_send("begin_checkout", analyticsDataLayer.gtag.m5basket);
+        }
+        // 2 krok kosiku
+        if (document.querySelector('.basket_step_2') && analyticsDataLayer !== undefined) {
+            analyticsDataLayer.gtag.m5basket.checkout_step = 2;
+            gtag_send("begin_checkout", analyticsDataLayer.gtag.m5basket);
+        }
+    }
+
+    
+    if (document.querySelector('.k2fx5confirmation') && purchaseGA !== undefined && location.href.indexOf("sent=sent") != -1) {
+        gtag_send("purchase", purchaseGA);
+        window.history.replaceState(null, null, location.href.replace('sent=sent&', ''));
+    }
+
+    document.elementListner('.gtag_product_click', 'click', clickProduct);
+    var searchPage = document.querySelector('.k2fx4searchDetail');
+    if (!!searchPage) {
+        var elasticSearch = searchPage.querySelector('[data-k2="searchElastic"]');
+
+        if (!!elasticSearch) {
+            if (!!!elasticSearch.querySelector('[data-k2="searchBrand"]') && !!!elasticSearch.querySelector('[data-k2="searchCategory"]') && !!!elasticSearch.querySelector('[data-k2="searchProduct"]') && !!!elasticSearch.querySelector('[data-k2="searchBlog"]')) {
+                var searchQuery = getParameterByName("search");
+                //ga("send", "event", "Search", "ZeroResults", searchQuery ? searchQuery : "Blank");
+                gtag('event', "ZeroResults", {
+                    'event_category': "search",
+                    'event_label': searchQuery ? searchQuery : "Blank",
+                    'value': 1
+                });
+            } else {
+                var searchQuery = getParameterByName("search");
+                gtag('event', "Results", {
+                    'event_category': "search",
+                    'event_label': searchQuery ? searchQuery : "Blank",
+                    'value': 1
+                });
+            }
+        } else {
+            if (!!searchPage.querySelector(".k2noItem:not(.k2hidden)") || !!searchPage.querySelector(".k2noSearch:not(.k2hidden)")) {
+                var searchQuery = getParameterByName("search");
+                //ga("send", "event", "Search", "ZeroResults", searchQuery ? searchQuery : "Blank");
+                gtag('event', "ZeroResults", {
+                    'event_category': "search",
+                    'event_label': searchQuery ? searchQuery : "Blank",
+                    'value': 1
+                });
+
+            } else if (!!searchPage.querySelector(".k2ifItem:not(.k2hidden)")) {
+                var searchQuery = getParameterByName("search");
+                gtag('event', "Results", {
+                    'event_category': "search",
+                    'event_label': searchQuery ? searchQuery : "Blank",
+                    'value': 1
+                });
+            }
+        }
+    }
+
+
+})
+
+function gtag_send(type, data) {
+    console.log(type);
+    console.log(data);
+    if(typeof gtag === 'function'){
+        gtag('event', type, data);
+    }
+}
+
+function clickProduct(e) {
+    //e.preventDefault();
+    var id = this.closest('.product_item').getAttribute('data-product-id').toString();
+    var href = this.getAttribute('href');
+   if (typeof analyticsDataLayer !== 'undefined' && typeof (analyticsDataLayer.gtag) !== 'undefined' && typeof (analyticsDataLayer.gtag.m3products) !== 'undefined') {
+        console.log(href);
+        console.log(id);
+
+        var thisItem = analyticsDataLayer.gtag.m3products.items.filter(function (entry) {
+            return entry.id === id;
+        });
+
+        gtag_send('select_content', {
+            "content_type": "product",
+            "items": thisItem
+        })
+    }
+    console.log('test1');
+
+    //location.href = href;
+}
+
+
+function getParameterByName(name) {
+    url = window.location.href;
+    name = name.replace(/[\[\]]/g, '\\$&');
+    var regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)'),
+        results = regex.exec(url);
+    if (!results) return null;
+    if (!results[2]) return '';
+    return decodeURIComponent(results[2].replace(/\+/g, ' '));
+}

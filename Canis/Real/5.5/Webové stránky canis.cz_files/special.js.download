@@ -1,0 +1,1392 @@
+jsGallery();
+branches();
+careerForm();
+scrollToEl();
+descriptionJs();
+variantParametersJs();
+variantBuyErrorJs();
+variantConfigurator();
+firstLoadConfiguration();
+zasilkovnaWidgetApi();
+gradientColor();
+
+function gradientColor(){
+    new MutationObserver(function(mutations) {
+        changeGradient();
+    }).observe(
+        document.querySelector('main'),
+          { subtree: true, characterData: true, childList: true }
+    );
+    changeGradient();
+    function changeGradient(){
+      doc.allEl('[data-gradient]:not(.gradient_init)').forEach(function(item){
+        item.classList.add('gradient_init')
+        let data = item.getAttribute('data-gradient').split(';')
+        console.log(data.length)
+        console.log(data.length == 2)
+        if(data.length == 2){
+          item.style.background = 'linear-gradient(45deg, #'+data[0].trim()+' 50%, #'+data[1].trim()+' 50%)';
+        }
+      })
+    }
+}
+
+function zasilkovnaWidgetApi() {
+
+    var element;
+    /*
+        This function will receive either a pickup point object, or null if the user
+        did not select anything, e.g. if they used the close icon in top-right corner
+        of the widget, or if they pressed the escape key.
+    */
+    if (typeof packetaApiKey == 'undefined') return;
+    if (packetaApiKey != "") {
+        function showSelectedPickupPoint(point) {
+            /*var spanElement = document.getElementById('packeta-point-info');*/
+            if (point && element.querySelector('option[value="' + point.id + '"]')) {
+                /*    var recursiveToString = function (o) {
+                     return Object.keys(o).map(
+                         function (k) {
+                             if (o[k] === null) {
+                                 return k + " = null";
+                             }
+
+                             return k + " = " + (typeof (o[k]) == "object" ?
+                                 "<ul><li>" + recursiveToString(o[k]) + "</li></ul>" :
+                                 o[k].toString().replace(/&/g, '&amp;').replace(/</g, '&lt;')
+                             );
+                         }
+                     ).join("</li><li>");
+                 };*/
+
+                /*  spanElement.innerText =
+                "Address: " + point.name + "\n" + point.zip + " " + point.city + "\n\n" +
+                "All available fields:\n";
+*/
+
+                /* spanElement.innerHTML +=
+                     "<ul><li>" + recursiveToString(point) + "</li></ul>";*/
+
+                element.value = point.id;
+                $(element).change();
+
+            } else {
+                element.value = 0;
+                $(element).change();
+                if (document.querySelector('[data-k2="branchDetail"]')) {
+                    document.querySelector('[data-k2="branchDetail"]').innerHTML = "";
+                }
+                //idElement.dispatchEvent(new Event('change'));
+            }
+            selectValue(element);
+        }
+
+        document.querySelectorAll('[data-k2-bb1="zasilkovna"]').forEach(function (el) {
+            el.closest('[data-k2="deliveryItem"]').addEventListener('click', function (e) {
+                e.preventDefault();
+                this.querySelector('[name="radio-delivery"]').checked = true;
+                $(this.querySelector('[name="radio-delivery"]')).click();
+                element = this.querySelector('[data-k2-bb1="zasilkovna"]');
+                var country = element.getAttribute('data-country-code').toLowerCase();
+                Packeta.Widget.pick(packetaApiKey, showSelectedPickupPoint, {
+                    country: country,
+                    language: defaultLang.toLowerCase()
+                });
+            }, false);
+
+            selectValue(el);
+
+        })
+
+        function selectValue(el) {
+            var value = el.value;
+            if (value > 0) {
+                text = el.querySelector('option[value="' + value + '"]').innerText;
+                el.closest('[data-k2="deliveryItem"]').classList.add('active');
+                el.nextElementSibling.querySelector('.select_branch').innerText = text + " - ";
+            } else {
+                el.closest('[data-k2="deliveryItem"]').classList.remove('active');
+            }
+        }
+    }
+}
+
+
+function firstLoadConfiguration() {
+    if (doc.el('.k2configuratorItem').exist) {
+        firstClickConfig = false;
+        idProduct = doc.el('[data-product-price-id]').getAttribute('data-product-price-id')
+        doc.allEl('[data-ids*="' + idProduct + '"]').forEach(function (item) {
+            firstClickConfig = true;
+            item.click();
+        });
+        firstClickConfig = false;
+    }
+}
+
+function variantConfigurator() {
+
+    document.elementListner('.k2configuratorItem', 'click', function () {
+        var removeActive = false;
+        console.log('click')
+        var el = doc.querySelectorAll('.k2configuratorItem.active');
+        //..vsechny polozky nejdrive zneaktivnime
+        allItems = document.querySelectorAll('[data-k2="variantContainer"] .k2item');
+        if (allItems) {
+            allItems.forEach(function (el) {
+                el.classList.add('deactive');
+                //el.querySelector('.k2btnProductBuy.js-specialHide').style.visibility = "hidden";
+                el.classList.remove('active');
+            });
+        }
+
+        this.closest('[data-k2="itemContainer"]').el('.k2configuratorItem:not(:disabled)')
+
+
+
+        if (this.closest('[data-k2="itemContainer"]').el('.k2configuratorItem.active') != this) {
+            if (this.closest('[data-k2="itemContainer"]').el('.k2configuratorItem.active').exist) {
+                this.closest('[data-k2="itemContainer"]').el('.k2configuratorItem.active').classList.remove('active')
+                el = doc.querySelectorAll('.k2configuratorItem.active');
+                //removeActive = true;
+                el.forEach(function (it) {
+                    //it.click(); // funkcni
+                })
+            }
+        }
+
+        //..zjistime jestli je aktivni to na co jsme klikli
+        thisParameterID = this.getAttribute('data-id');
+        title = this.title;
+
+        activeEl = doc.querySelectorAll('.k2configuratorItem.active');
+        //console.log(activeEl)
+
+
+        if (this.classList.contains('active')) {
+            this.classList.remove('active');
+            console.log('odebral si posledni')
+            removeActive = true;
+            /*  el.forEach(function(it){
+                 it.click();
+                 it.click();
+             })  */
+            /*console.log(el)
+            for(i = elLength; i >= 0; i--){
+                console.log(el[i])    
+            } */
+        } else {
+            this.classList.add('active');
+        }
+
+        if (title && this.classList.contains('active')) {
+            this.closest('[data-k2="groupItem"]').el('.value_configuration_select').innerHTML = ": <span class='configration_name'>" + title + "</span>";
+        } else {
+            this.closest('[data-k2="groupItem"]').el('.value_configuration_select').innerHTML = "";
+        }
+
+        /* result = data.reduce((a, b) => a.filter(c => b.includes(c)));
+
+        console.log(result); */
+
+        allGroupsIDs = [];
+        //..vsechny skupiny parametru
+        allGroups = document.querySelectorAll('[data-k2="m0configurator"] [data-k2="itemContainer"]');
+        allGroups.forEach(function (groupEl) {
+            //..pouze aktivny parametry ze skupiny
+            activeGroup = groupEl.querySelectorAll('.k2configuratorItem.active');
+
+            activeGroupIDs = [];
+            //..aktivni parametry projdem a ulozime do mezipole
+            if (activeGroup) {
+                activeGroup.forEach(function (activeGroupEl) {
+                    activeGroupIDs.push(activeGroupEl.getAttribute('data-ids'));
+                });
+                //..kdyz je mezipole naplnene tak vsechny IDs hodime do jedneh pole pro porovnaní
+                if (activeGroupIDs.length > 0) {
+                    allGroupsIDs.push(activeGroupIDs.join(',').split(','));
+                }
+            }
+        });
+
+        if (allGroupsIDs.length === 0) {
+            //..nemame zadne aktivni IDs = nic zakliknute | vse aktivujeme
+            allGroups.forEach(function (groupEl) {
+                //..vsechny parametry
+                activeGroup = groupEl.querySelectorAll('.k2configuratorItem');
+                activeGroupIDs = [];
+                if (activeGroup) {
+                    activeGroup.forEach(function (activeGroupEl) {
+                        activeGroupIDs.push(activeGroupEl.getAttribute('data-ids'));
+                    });
+                    //..kdyz je mezipole naplnene tak vsechny IDs hodime do jedneh pole pro porovnaní
+                    if (activeGroupIDs.length > 0) {
+                        allGroupsIDs.push(activeGroupIDs.join(',').split(','));
+                    }
+                }
+            });
+        }
+
+        //..je aspon nejake IDs
+        if (allGroupsIDs.length > 0) {
+            arrayToCheck = [];
+            allActiveIDs = allGroupsIDs;
+            allActiveIDs.sort();
+            //..projdeme vsechny pole oznacenych IDs
+            for (var i = 0; i < allActiveIDs.length; i += 1) {
+                //jestli je pole IDs
+                if (allActiveIDs[i] !== undefined && allActiveIDs[i].length != 0) {
+                    //..kdyz je prvni loop tak naplnime vsechny IDs do kontrolniho pole
+                    if (i < 1) {
+                        allActiveIDs[i].forEach(function (el) {
+                            arrayToCheck[el] = el;
+                            //                console.log('add - ' + el);
+                        });
+                    } else {
+                        //..kazdy dalsi loop uz kontroluje naplnene kontrolni pole jestli se nahazi v kazdem dalsim oznacenym IDs
+                        arrayToCheck.forEach(function (el) {
+                            if (!allActiveIDs[i].includes(el)) {
+                                delete arrayToCheck[el];
+                                //                  console.log('neni - ' + el + ' - mazem');
+                            }
+                        });
+                    }
+                    //..tohle by nastat nemelo ale tak kdyz uz jsem to tu napsal tak nebudu opotrebovavat klavesu delete
+                } else if (allActiveIDs.length === 1) {
+                    allActiveIDs.forEach(function (el) {
+                        arrayToCheck[el] = el;
+                    });
+                }
+            }
+        }
+
+        //..preplnime do pole pro aktivaci polozek variant
+        toActive = arrayToCheck;
+        if (toActive.length > 0) {
+            toActive.forEach(function (ID) {
+                activeItem = document.querySelector('[data-k2="variantContainer"] .k2item' + ID);
+                if (activeItem) {
+                    activeItem.classList.add('active');
+                    activeItem.classList.remove('deactive');
+                    //.js-specialHide').style.visibility = "visible";
+                }
+            });
+        }
+
+
+        data = [];
+        doc.allEl('[data-k2="itemContainer"]').forEach(function (ttt) {
+            ttt.allEl('.k2configuratorItem.active').forEach(function (item) {
+                let dataItem = item.getAttribute('data-ids').split(',');
+                data.push(dataItem)
+                //data = data.concat(dataItem);
+            })
+        });
+        //data = data.reduce((a, b) => a.filter(c => b.includes(c)));
+        console.log(data)
+
+        if (data.length != 0) {
+            //toActive = data; 
+        }
+        //dataTemp = [data,toActive];
+        //data = data.reduce((a, b) => a.filter(c => b.includes(c)));
+
+
+        //..odkomentuj pro zruseni disablovani parametru
+        //allGroups = []; 
+        //console.log(allGroups);
+        //console.log(toActive);
+
+        countActive = 0;
+        allGroups.forEach(function (oneGroup) {
+            groupItem = oneGroup.querySelectorAll('.k2configuratorItem');
+            //..vsechny parametry a jejich ID narveme do promenne
+            if (oneGroup.querySelector('.k2configuratorItem.active')) {
+                countActive++;
+            }
+            //if ((!oneGroup.querySelector('.k2configuratorItem.active') && groupItem[0].getAttribute('data-id') != thisParameterID)) {
+            console.log(!oneGroup.querySelector('.k2configuratorItem.active') && groupItem[0].getAttribute('data-id') != thisParameterID)
+            //console.log(' vlezl si')
+            groupItem.forEach(function (parameterItemsElement) {
+                isInIDs = false;
+                //..vsem zrusime disable 
+                //if(doc.querySelectorAll('.k2configuratorItem.active').length <= 1){
+                //if (groupItem[0].getAttribute('data-id') != thisParameterID || doc.querySelectorAll('.k2configuratorItem.active').length  == 0) {
+                if (groupItem[0].getAttribute('data-id') != thisParameterID || removeActive) { //!oneGroup.querySelector('.k2configuratorItem.active') && 
+                    parameterItemsElement.disabled = false;
+                }
+                //}
+                //}
+                //parameterItemsElement.style.outline = "";
+                parameterItemIDs = parameterItemsElement.getAttribute('data-ids').split(',');
+                //..zjistime ktere je mozne jeste vyklikat dle aktualne oznaceneho
+                parameterItemIDs.forEach(function (parameterID) {
+                    if (toActive.includes(parameterID)) {//|| data.includes(parameterID)) {
+                        isInIDs = true;
+                    }
+                });
+                //..oznacime disable ktere je mozne dle aktualniho jeste dal oznacovat  
+                if (groupItem[0].getAttribute('data-id') != thisParameterID || removeActive) { //!oneGroup.querySelector('.k2configuratorItem.active') && 
+                    if (!isInIDs) {
+                        if (!parameterItemsElement.classList.contains('active')) {
+                            parameterItemsElement.disabled = true;
+                            //parameterItemsElement.style.outline = "5px solid red";
+                        } else {
+                            console.error('tento ma byt disabled ale je acitve')
+                            console.log(parameterItemsElement);
+                            console.error('tento ma byt disabled ale je acitve')
+                        }
+                    }
+                }
+
+                /*  if(!oneGroup.querySelector('.k2configuratorItem.active')){
+                     if (!isInIDs) {
+                         if (!parameterItemsElement.classList.contains('active')) {
+                             parameterItemsElement.disabled = true;
+                             //parameterItemsElement.style.outline = "5px solid red";
+                         }
+                     }
+                 } */
+            });
+
+            /*else { 
+               console.warn('je tu posledni v groupe')
+               groupItem.forEach(function (parameterItemsElement) {
+                   isInIDs = false;
+                   //..vsem zrusime disable
+                   parameterItemsElement.disabled = false;
+                   //parameterItemsElement.style.outline = "";
+               })
+           } */
+
+        });
+
+        if (doc.querySelectorAll('.k2configuratorItem.active').length == 1) {
+            console.log('všechny v aktivni groupe');
+            doc.querySelector('.k2configuratorItem.active').closest('[data-k2="itemContainer"]').allEl('.k2configuratorItem').forEach(function (it) {
+                it.disabled = false;
+            })
+        }
+
+        console.log(this)
+        thisIDs = this.getAttribute('data-ids').split(',');
+        activeEl.forEach(function (active) {
+            group = active.closest('[data-k2="groupItem"]')
+            groupeItems = group.querySelectorAll('.k2configuratorItem');
+
+          var secondArray = [];
+          secondArray.push(thisIDs);
+            activeEl.forEach(function (active2) {
+                groupSecond = active2.closest('[data-k2="groupItem"]')
+                
+                if(group != groupSecond){
+                    console.log(group)
+                    console.log("----------------")
+                    console.log(groupSecond)
+                    console.log(this)
+                    console.log(active2)
+                    console.log("================")
+                    secondArray.push(active2.getAttribute('data-ids').split(','));
+                }
+                
+            });
+             console.log(secondArray) 
+            if(secondArray.length > 1){
+                secondArray = secondArray.reduce((a, b) => a.filter(c => b.includes(c)));
+            } else {
+                secondArray = thisIDs;
+            }
+            console.log(secondArray) 
+
+            groupeItems.forEach(function (item) {
+                parameterItemIDs = item.getAttribute('data-ids').split(',');
+                //..zjistime ktere je mozne jeste vyklikat dle aktualne oznaceneho
+                parameterItemIDs.forEach(function (parameterID) {
+                    if (secondArray.includes(parameterID)) {//|| data.includes(parameterID)) {                        
+                        item.disabled = false;
+                    } 
+                    
+                });
+
+                
+            })
+            
+
+        })
+
+        if (removeActive) {
+            el.forEach(function (it) {
+                //it.click();// funkcni
+            });
+        }
+
+        console.log(countActive, allGroups.length)
+        if (!firstClickConfig) {
+            if (countActive == allGroups.length) {
+                if (doc.el('.variant_item.active a').exist) {
+                   // alert('už klikat nemužeš')
+                    doc.el('.variant_item.active a').click();// funkcni
+                    doc.el('.configuration_wrap').classList.add('loader_variant')// funkcni
+                } else {
+                    console.error('varianta nenalezena')
+                }
+            }
+        }
+
+    });
+
+
+}
+
+function jsGallery() {
+    var gallerySwiper = null;
+    document.elementListner('.gallery_item_js', 'click', function (e) {
+        e.preventDefault();
+        var galleryWrap = this.closest('.gallery_js'),
+            actualUrl = this.getAttribute('href'),
+            actaulSlide = this.closest('.swiper-slide').posIndex(),
+            items = galleryWrap.allEl('.gallery_item_js'),
+            sliders = "";
+
+        items.forEach(function (t) {
+            var url = t.getAttribute('href'),
+                title = t.el('figcaption').textContent;
+            if (t.getElementsByTagName('img').length === 0) {
+                let youtubeID = getYoutubeURL(t);
+                if (youtubeID !== null) {
+                    sliders = sliders + '<div class="swiper-slide gallery_slide"><iframe class="youtube_iframe_video" data-src="https://img.youtube.com/vi/' + youtubeID + '/0.jpg" src="https://www.youtube.com/embed/' + youtubeID + '?controls=0&enablejsapi=1" allowfullscreen disablekb="1"></iframe></div>';
+                }
+            } else {
+                sliders = sliders + '<div class="swiper-slide gallery_slide"><div class="gallery_title">' + title + '</div><div class="gallery_img"><img src="#" data-src="' + url + '" class="js_lazy_img" alt="' + title + '"/><span class="loading loader"><span></span></span></div></div>';
+            }
+        });
+
+        doc.body.insertAdjacentHTML('beforeend', '<div class="gallery" style="display: none;"><label class="mobile_gallery"><input type="checkbox"><div class="gallery_pagination_wrap"><span class="btn_gallery_menu"><span></span></span><div class="gallery_pagination_container"><div class="gallery_pagination"></div></div></div></label><button class="gallery_close"></button><div class="gallery_container swiper-container"><button class="gallery_prev"></button><button class="gallery_next"></button><div class="swiper-wrapper">' + sliders + '</div></div></div>');
+
+        gallerySwiper = new Swiper(doc.el('.gallery .gallery_container'), {
+            speed: 400,
+            initialSlide: actaulSlide,
+            roundLengths: true,
+            preloadImages: false,
+            mousewheel: true,
+            on: {
+                afterInit: function () {
+                    doc.el('.gallery').style.display = "";
+                    doc.el('.gallery_pagination_container').scrollAnimation(doc.el('.gallery_pagination_item.active'));
+                },
+                slideChange: function () {
+                    this.el.el('.gallery_slide.swiper-slide-zoomed').classList.remove('swiper-slide-zoomed');
+                    doc.el('.mobile_gallery input').checked = false;
+                },
+                slideChangeTransitionStart: function (a, b) {
+                    doc.el('.gallery_pagination_container').scrollAnimation(doc.el('.gallery_pagination_item.active'));
+                    pauseYoutubeVideo();
+                }
+            },
+            lazy: {
+                elementClass: 'js_lazy_img',
+                loadPrevNext: true,
+                preloaderClass: 'loading'
+            },
+            zoom: {
+                toggle: true,
+                maxRatio: 1.5,
+                containerClass: 'gallery_img'
+            },
+            navigation: {
+                nextEl: '.gallery_next',
+                prevEl: '.gallery_prev'
+            },
+            pagination: {
+                el: '.gallery_pagination',
+                type: 'bullets',
+                clickable: true,
+                bulletClass: 'gallery_pagination_item',
+                bulletActiveClass: 'active',
+                renderBullet: function (index, className) {
+                    var index = index + 1,
+                        bgUrl = this.el.el('.gallery_slide:nth-child(' + index + ') img').getAttribute('data-src');
+                    if (bgUrl === null) {
+                        bgUrl = this.el.el('.gallery_slide:nth-child(' + index + ') iframe').getAttribute('data-src');
+                    }
+                    return '<div class="' + className + '"><div><img src="' + bgUrl + '" class="js_lazy_img"></div></div>';
+                }
+            }
+        });
+
+        doc.el('.gallery_close').addEventListener('click', closeGallery);
+        doc.addEventListener("keyup", keyControl);
+
+    }, true);
+
+    function closeGallery() {
+        doc.el('.gallery').remove();
+        gallerySwiper.destroy();
+        doc.el('.gallery_close').removeEventListener('click', closeGallery);
+        doc.removeEventListener("keyup", keyControl);
+    }
+
+    function keyControl(e) {
+        var keycode = ((typeof e.keyCode != 'undefined' && e.keyCode) ? e.keyCode : e.which);
+        if (keycode === 27) {
+            closeGallery();
+        }
+        if (keycode === 37) {
+            gallerySwiper.slidePrev();
+        }
+        if (keycode === 39) {
+            gallerySwiper.slideNext();
+        }
+    }
+}
+
+function productGallery() {
+    var itemCopy = document.querySelector('.item_gallery_copy');
+    var imageContent = document.querySelector('.product_gallery_slider .swiper-wrapper');
+    var productSlider = document.querySelector('.product_gallery_slider');
+    var thumbsSlider = document.querySelector('.product_gallery_thumbs_slider');
+
+    if (imageContent && itemCopy) {
+        imageContent.insertAdjacentHTML('afterbegin', itemCopy.outerHTML);
+        itemCopy.remove();
+    }
+    let counter = 0;
+    if (productSlider) {
+        productSlider.allEl('.swiper-slide').forEach(function (item) {
+            itemClone = item.cloneNode(true);
+            itemClone.el('.product_item_img').classList.add('thumb_item');
+            if (itemClone.getElementsByTagName('img').length === 0) {
+                item.classList.add('auto-height');
+                let iframe = itemClone.el('iframe');
+                let youtubeID = getYoutubeURL(itemClone);
+                let description = iframe.getAttribute('alt');
+                iframe.remove();
+                itemClone.el('.product_item_img').innerHTML = '<img src="https://img.youtube.com/vi/' + youtubeID + '/0.jpg" data-src="https://img.youtube.com/vi/' + youtubeID + '/0.jpg" class="js_lazy_img" alt="' + description + '" title="' + description + '" itemprop="image" content="https://img.youtube.com/vi/' + youtubeID + '/0.jpg" />';
+            }
+            itemClone.innerHTML = itemClone.el('.product_item_img').outerHTML;
+            thumbsSlider.el('.swiper-wrapper').appendChild(itemClone);
+            counter = counter + 1;
+        });
+
+        let orientation = (window.innerWidth < 675) ? "horizontal" : "vertical";
+
+        var galleryProductSwiper = new Swiper(productSlider, {
+            speed: 400,
+            initialSlide: 0,
+            preloadImages: false,
+            simulateTouch: true,
+            roundLengths: true,
+            touchRatio: true,
+            on: {
+                slideChangeTransitionStart: function (e) {
+                    index = galleryProductSwiper.realIndex + 1;
+                    doc.el('.gallery_thumbs_product_wrap .swiper-slide.active').classList.remove('active');
+                    doc.el('.gallery_thumbs_product_wrap .swiper-slide:nth-child(' + index + ')').classList.add('active');
+                    pauseYoutubeVideo();
+                    galleryProductThumbsSwiper.slideTo(galleryProductSwiper.realIndex);
+                }
+            },
+            lazy: {
+                elementClass: 'js_lazy_img',
+                loadPrevNext: true,
+                preloaderClass: 'loading'
+            }
+        });
+
+        var galleryProductThumbsSwiper = new Swiper(thumbsSlider, {
+            speed: 400,
+            initialSlide: 0,
+            slidesPerView: 'auto',
+            direction: orientation,
+            preloadImages: false,
+            roundLengths: true,
+            slideToClickedSlide: true,
+            on: {
+                init: function () {
+                    doc.el('.gallery_thumbs_product_wrap .swiper-slide:nth-child(1)').classList.add('active');
+                }
+            },
+            lazy: {
+                elementClass: 'js_lazy_img',
+                loadPrevNext: true,
+                loadPrevNextAmount: 6,
+                preloaderClass: 'loading',
+            },
+            navigation: {
+                nextEl: '.gallery_product_wrap .gallery_product_next',
+                prevEl: '.gallery_product_wrap .gallery_product_prev'
+            }
+        });
+
+        doc.elementListner('.thumb_item', 'click', function (e) {
+            e.preventDefault();
+            doc.el('.gallery_thumbs_product_wrap .swiper-slide.active').classList.remove('active');
+            this.classList.add('active');
+            var nodes = Array.prototype.slice.call(this.parentElement.parentElement.children);
+            galleryProductSwiper.slideTo(nodes.indexOf(this.parentElement));
+        });
+    }
+}
+
+function parseYoutubeURL(url) {
+    let regExp = /^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    let match = url.match(regExp);
+    if (match && match[2].length === 11) {
+        return match[2];
+    } else {
+        return null;
+    }
+}
+
+function getYoutubeURL(element) {
+    let iframe = element.el('iframe');
+    let youtubeURL = iframe.getAttribute('src');
+    return parseYoutubeURL(youtubeURL);
+}
+
+function pauseYoutubeVideo() {
+    let youtubeSlide = doc.allEl('.youtube_iframe_video');
+    if (youtubeSlide.length !== 0) {
+        youtubeSlide.forEach(function (t) {
+            t.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
+        });
+    }
+}
+
+function branches() {
+
+    if (document.querySelector(".branchBox_wrap #maps")) {
+        var isIE = (window.navigator.userAgent.match(/MSIE|Trident/) !== null);
+        var branchContainer = document.querySelector(".branchBox .branch_wrap");
+        var branchItems = branchContainer.querySelectorAll(".branch_item");
+
+        var stred = SMap.Coords.fromWGS84(14.41, 50.08);
+        mapa = new SMap(document.querySelector(".branchBox_wrap #maps"), stred, 50);
+        mapa.addDefaultLayer(SMap.DEF_BASE).enable();
+        mapa.addDefaultControls();
+
+        var mouseControl = null;
+        var controls = mapa.getControls();
+
+        for (var i = 0; i < controls.length; i++) {
+            if (controls[i] instanceof SMap.Control.Mouse) mouseControl = controls[i];
+        }
+
+        document.querySelectorAll('.branchServiceItem').forEach(function (t) {
+            id = t.getAttribute('data-id');
+            if (!!!document.querySelector('[data-k2="itemServices"][data-id="' + id + '"]')) {
+                t.style.display = "none";
+            }
+        });
+
+        mouseControl.configure(SMap.MOUSE_PAN | SMap.MOUSE_ZOOM | SMap.MOUSE_WHEEL);
+
+        document.addEventListener("mousedown", function (e) { // CTRL zmáčkl
+            mouseControl.configure(SMap.MOUSE_PAN | SMap.MOUSE_ZOOM | SMap.MOUSE_WHEEL);
+        });
+        document.addEventListener("mouseup", function (e) { // pustil myš
+            mouseControl.configure(SMap.MOUSE_PAN | SMap.MOUSE_ZOOM | SMap.MOUSE_WHEEL);
+        });
+        document.addEventListener("keydown", function (e) { // CTRL zmáčkl
+            if (e.ctrlKey) {
+                mouseControl.configure(SMap.MOUSE_PAN | SMap.MOUSE_ZOOM | SMap.MOUSE_WHEEL);
+            }
+        });
+        document.addEventListener("keyup", function (e) { //pustil klávesu
+            mouseControl.configure(SMap.MOUSE_PAN | SMap.MOUSE_ZOOM | SMap.MOUSE_WHEEL);
+        });
+
+        var vrstvaid;
+        var znacky = [];
+        var souradnice = [];
+
+        var completedCount = 0;
+
+        branchItems.forEach(function (branch, idx, arrayEl) {
+            var lat = branch.getAttribute("data-lat"),
+                lon = branch.getAttribute("data-lon"),
+                title = branch.getAttribute("data-title"),
+                address = branch.getAttribute("data-address");
+            var urlExternal = branch.querySelector('.link_external');
+            console.log(address)
+            if (lat == 0 || lon == 0) {
+                var query = address;
+                new SMap.Geocoder(query, odpoved);
+
+                function odpoved(geocoder) {
+                    if (!geocoder.getResults()[0].results.length) {
+
+                        console.log("Tohle neznáme.");
+                        completedCount++;
+                        if (arrayEl.length == completedCount) doLayer();
+                    } else {
+                        console.log("Tohle známe.");
+
+                        var vysledky = geocoder.getResults()[0].results;
+                        var item = vysledky.shift();
+                        var c = item.coords;
+
+                        doMarker(c);
+                    }
+                }
+            } else {
+                console.log('mam GPS')
+                console.log(branch.getAttribute('data-title'))
+                var c = SMap.Coords.fromWGS84(lon, lat);
+                doMarker(c);
+            }
+
+            function doMarker(coords) {
+                var options = {
+                    url: maps_url_img,
+                    title: title,
+                    anchor: {
+                        left: 10,
+                        bottom: 1
+                    } /* Ukotvení značky za bod uprostřed dole */
+                }
+
+                var znacka = new SMap.Marker(coords, null, options);
+
+                souradnice.push(coords);
+                znacky.push(znacka);
+
+                branch.setAttribute("marker-id", znacka.getId());
+                completedCount++;
+                if (arrayEl.length == completedCount) doLayer();
+            }
+
+        });
+
+        function doLayer() {
+            var vrstva = new SMap.Layer.Marker(); /* Vrstva se značkami */
+
+            // var clusterer = new SMap.Marker.Clusterer(mapa);
+            // vrstva.setClusterer(clusterer);
+
+            mapa.addLayer(vrstva); /* Přidat ji do mapy */
+            vrstva.enable(); /* A povolit */
+
+            for (var i = 0; i < znacky.length; i++) {
+                vrstva.addMarker(znacky[i]);
+            }
+
+            // console.log(znacky);
+            vrstvaid = vrstva.getId();
+
+            var cz = mapa.computeCenterZoom(souradnice, true); /* Spočítat pozici mapy tak, aby značky byly vidět */
+            //console.log(cz[0].x = cz[0].x-1);
+
+            mapa.setCenterZoom(cz[0], cz[1]);
+
+            /*if (filterService.length > 0)
+                recalcBranch();*/
+        }
+
+        document.elementListner('.branch_item', 'click', function () {
+            console.log('test')
+            var markerid = this.getAttribute("marker-id");
+            var znackyList = mapa.getLayer(vrstvaid).getMarkers();
+
+            znackyList.forEach(function (znacka) {
+                if (znacka._id == markerid) {
+                    var c = znacka._coords;
+
+                    setView(c); //zazoomuje na značku
+                    znacka.click(); //otevře vizitku
+                }
+            });
+
+            function setView(coords) {
+                mapa.setCenterZoom(coords, 30);
+            }
+        });
+
+        // poslouchani na kliknuti u markeru
+        mapa.getSignals().addListener(this, "marker-click", function (e) {
+            var marker = e.target,
+                id = marker.getId(),
+                index;
+            console.log('click marker')
+
+            branchItems.forEach(function (branchItem) {
+                if (branchItem.getAttribute("marker-id") == id) {
+                    scrollToElm(branchContainer, branchItem, 0.6);
+                    branchItem.classList.add("active");
+                } else {
+                    branchItem.classList.remove("active");
+                }
+            });
+
+        });
+
+        var target = document.querySelector(".searchBox .find_location");
+        target.addEventListener("click", function () {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(showClosest);
+            } else {
+                //alert("Geolocation is not supported by this browser.");
+            }
+        });
+        var currPosMarker;
+
+        function scrollToElm(container, elm, duration) {
+            var pos = getRelativePos(elm);
+            scrollTo(container, pos.top, duration); // duration in seconds
+        }
+
+        function getRelativePos(elm) {
+            var pPos = elm.parentNode.getBoundingClientRect(), // parent pos
+                cPos = elm.getBoundingClientRect(), // target pos
+                pos = {};
+
+            pos.top = cPos.top - pPos.top + elm.parentNode.scrollTop,
+                pos.right = cPos.right - pPos.right,
+                pos.bottom = cPos.bottom - pPos.bottom,
+                pos.left = cPos.left - pPos.left;
+
+            return pos;
+        }
+
+        function scrollTo(element, to, duration, onDone) {
+            var start = element.scrollTop,
+                change = to - start,
+                startTime = performance.now(),
+                val, now, elapsed, t;
+
+            function animateScroll() {
+                now = performance.now();
+                elapsed = (now - startTime) / 1000;
+                t = (elapsed / duration);
+
+                element.scrollTop = start + change * easeInOutQuad(t);
+
+                if (t < 1)
+                    window.requestAnimationFrame(animateScroll);
+                else
+                    onDone && onDone();
+            };
+
+            animateScroll();
+        }
+
+        function easeInOutQuad(t) {
+            return t < .5 ? 2 * t * t : -1 + (4 - 2 * t) * t
+        };
+
+        function showClosest(position) {
+            if (currPosMarker != null) {
+                mapa.getLayer(vrstvaid).removeMarker(currPosMarker);
+            }
+
+            var closestCount = 3;
+            var znackyList = mapa.getLayer(vrstvaid).getMarkers();
+            var markerArray = [];
+            var closestArray = [];
+
+            znackyList.forEach(function (znacka) {
+                var c = znacka._coords;
+
+                var dist = calcCrow(position.coords.latitude, position.coords.longitude, c.y, c.x);
+                markerArray.push({
+                    dist: dist,
+                    lat: c.y,
+                    lon: c.x
+                });
+
+            });
+            // console.log(markerArray);
+
+            closestArray.push(SMap.Coords.fromWGS84(position.coords.longitude, position.coords.latitude));
+            for (i = 0; i < closestCount; i++) {
+                var dist, index;
+
+                for (let a in markerArray) {
+                    if (a == 0) {
+                        dist = markerArray[a].dist;
+                        index = a;
+                    }
+                    if (dist > markerArray[a].dist) {
+                        index = a;
+                    }
+
+                }
+
+                closestArray.push(SMap.Coords.fromWGS84(markerArray[index].lon, markerArray[index].lat));
+                markerArray.splice(index, 1);
+            }
+
+            // console.log(closestArray);
+
+            var options = {
+                url: map_current_img,
+                anchor: {
+                    left: 15,
+                    bottom: 4
+                } /* Ukotvení značky za bod uprostřed dole */
+            }
+            var coords = SMap.Coords.fromWGS84(position.coords.longitude, position.coords.latitude);
+            var znacka = new SMap.Marker(coords, null, options);
+            currPosMarker = znacka;
+            mapa.getLayer(vrstvaid).addMarker(znacka);
+
+            var cz = mapa.computeCenterZoom(closestArray); /* Spočítat pozici mapy tak, aby značky byly vidět */
+            mapa.setCenterZoom(cz[0], cz[1]);
+        }
+
+        var dataForSearch = {};
+
+        branchItems.forEach(function (branch) {
+            tempItem = {};
+            if (isIE) {
+                tempItem.addressSearch = removeDiacritics(branch.getAttribute("data-address").toLowerCase()).toLowerCase();
+                tempItem.nameSearch = removeDiacritics(branch.getAttribute("data-title").toLowerCase()).toLowerCase();
+            } else {
+                tempItem.addressSearch = branch.getAttribute("data-address").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+                tempItem.nameSearch = branch.getAttribute("data-title").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+            }
+            tempItem.element = branch;
+            dataForSearch[branch.getAttribute("data-id")] = tempItem;
+        })
+        console.log(dataForSearch);
+        var input = document.querySelector(".searchBox input");
+        input.addEventListener("input", function () {
+            if (this.value.length == 0) {
+                document.querySelector(".branchBox_wrap").classList.remove('active_search');
+            } else {
+                document.querySelector(".branchBox_wrap").classList.add('active_search');
+            }
+            /* branchItems.forEach(function (branch) {
+                 var title = branch.getAttribute("data-title"),
+                     address = branch.getAttribute("data-address");
+  
+                 if (input.value != "") {
+                     if (title.toUpperCase().contains(input.value.toUpperCase())) branch.classList.remove("nhide");
+                     else if (address.toUpperCase().contains(input.value.toUpperCase())) branch.classList.remove("nhide");
+                     else {
+                         branch.classList.add("nhide");
+                     }
+                 } else {
+                     branch.classList.remove("nhide");
+                 }
+             });*/
+            searchBranch(dataForSearch, 'addressSearch', input.value, 9999);
+        });
+
+        function searchBranch(data, searchKey, value, limit) {
+            if (isIE) {
+                value = removeDiacritics(value).toLowerCase().trim();
+            } else {
+                value = value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+            }
+            var i = 0;
+            var searchResult = [];
+            var branchListHTMLSearch = "";
+            //branchWrap.innerHTML = "";
+
+            if (isIE) {
+                value = /*removeDiacritics(value .replaceAll(' ', '') )*/ value.split(' ');
+            } else {
+                value = value /*.replaceAll(' ', '') .normalize("NFD").replace(/[\u0300-\u036f]/g, "")*/.split(' ');
+            }
+
+            //console.log(value);
+
+            for (index in data) {
+                if (i == limit) {
+                    console.log(i);
+                    break;
+                }
+                isSearch = false;
+
+                //tempTemplate = branchItemTemplate;
+                item = data[index];
+                if (isIE) {
+                    valueOne = item[searchKey].toLowerCase() /*.replaceAll(' ', '')*/.split(' ');
+                    valueSecond = item["nameSearch"].toLowerCase() /*.replaceAll(' ', '')*/.split(' ');
+                    valueSearch = valueOne.concat(valueSecond);
+                } else {
+                    valueOne = item[searchKey].toLowerCase() /*.replaceAll(' ', '').normalize("NFD").replace(/[\u0300-\u036f]/g, "")*/.split(' ');
+                    valueSecond = item["nameSearch"].toLowerCase() /*.replaceAll(' ', '').normalize("NFD").replace(/[\u0300-\u036f]/g, "")*/.split(' ');
+                    valueSearch = valueOne.concat(valueSecond);
+                }
+
+                //console.log(valueSearch);
+                /* var test = valueSearch.filter(function (name) {
+                     return name === value;
+                 })
+                 console.log(test);*/
+                var xx = 0;
+                for (var t = 0; t < value.length; t++) {
+
+                    word = value[t];
+
+                    for (var tx = 0; tx < valueSearch.length; tx++) {
+                        if (valueSearch[tx].indexOf(word) >= 0) {
+                            //console.log(word);
+                            //console.log(valueSearch[tx]);
+                            //isSearch = true;
+                            xx++;
+                            break;
+                        }
+                    }
+
+                    if (xx == value.length) {
+                        isSearch = true;
+                        break;
+                    }
+                }
+
+                //if (valueOne.toUpperCase().indexOf(value) > -1 || valueSecond.toUpperCase().indexOf(value) > -1) {
+                if (isSearch) {
+                    item['element'].classList.remove("hide");
+                } else {
+                    item['element'].classList.add("hide");
+                }
+            }
+            //console.log(searchResult);
+            return searchResult;
+        }
+
+        branchContainer.addEventListener("click", function (ev) {
+            var target = ev.target;
+            if (target.closest(".branch_content") || target.closest(".findMarker")) {
+                var markerid = target.closest(".branch_item").getAttribute("marker-id");
+                var znackyList = mapa.getLayer(vrstvaid).getMarkers();
+                var markerp = "";
+
+                znackyList.forEach(function (marker) {
+                    if (marker._id == markerid) {
+                        markerp = marker;
+                    }
+                });
+                if (markerp != "") {
+                    var arrayp = [];
+                    arrayp.push(markerp._coords);
+
+                    var cz = mapa.computeCenterZoom(arrayp); /* Spočítat pozici mapy tak, aby značky byly vidět */
+                    mapa.setCenterZoom(cz[0], cz[1]);
+                    markerp.click();
+
+                    branchItems.forEach(function (branch) {
+                        branch.classList.remove("active");
+                    });
+                    target.closest(".branch_item").classList.add("active");
+                }
+
+            }
+        });
+
+        var branchServices = [];
+
+        branchItems.forEach(function (branch) {
+            var services = [];
+            branch.querySelectorAll(".serviceList .serviceItem").forEach(function (service) {
+                services.push(service.getAttribute("data-id"));
+            });
+            branchServices.push({
+                id: branch.getAttribute("data-id"),
+                service: services
+            });
+        });
+        console.log('branchServices')
+        console.log(branchServices)
+
+        var filterService = [];
+        $(document).on('webTrigger', function (e, msg) {
+            if (msg.modul === 'popup' && msg.state === 'end' && msg.action === 'load' && msg.msg.selector === '#branchServices') {
+                if (document.querySelector(".popup .branchServices")) {
+                    document.querySelectorAll('.popup .branchServices input[type="checkbox"]').forEach(function (el) {
+                        if (filterService.includes(el.getAttribute("name"))) el.checked = true;
+                        else el.checked = false;
+                    });
+                    document.querySelector(".popup .branchServices").addEventListener("click", listenBranchClick);
+                }
+            }
+            if (msg.modul === 'popup' && msg.state === 'start' && msg.action === 'exit') {
+                if (document.querySelector(".popup .branchServices")) {
+                    document.querySelector(".popup .branchServices").removeEventListener("click", listenBranchClick);
+                }
+            }
+        });
+
+        function arrayRemove(arr, value) {
+            return arr.filter(function (ele) {
+                return ele != value;
+            });
+        }
+
+        function recalcBranch() {
+            var znackyFiltered = [];
+            // var souradniceFiltered = []; // Odkomentovat pro prenastaveni pohledu na nove znacky
+            branchServices.forEach(function (branch) {
+                var branchHtml = branchContainer.querySelector('.branch_item[data-id="' + branch.id + '"]');
+                if (filterService.every((val) => branch.service.includes(val))) {
+                    branchHtml.classList.remove("shide");
+                    var markerid = branchHtml.getAttribute("marker-id");
+                    var znackaFind = znacky.find(c => c._id == markerid);
+                    znackyFiltered.push(znackaFind);
+                    // souradniceFiltered.push(znackaFind._coords);
+                } else
+                    branchHtml.classList.add("shide");
+            });
+
+            if (filterService.length == 0) document.querySelector(".branchServicesBtn .numberCount").parentElement.classList.add("hide");
+            else {
+                document.querySelector(".branchServicesBtn .numberCount").innerHTML = filterService.length;
+                document.querySelector(".branchServicesBtn .numberCount").parentElement.classList.remove("hide");
+            }
+
+            if (mapa.getLayer(vrstvaid)) {
+                var vrstvaM = mapa.getLayer(vrstvaid);
+                vrstvaM.removeAll();
+                console.log(znackyFiltered);
+                for (var i = 0; i < znackyFiltered.length; i++) {
+                    if (znackyFiltered[i] != undefined) {
+                        vrstvaM.addMarker(znackyFiltered[i]);
+                    }
+                }
+            }
+
+            // var cz = mapa.computeCenterZoom(souradniceFiltered); 
+            // mapa.setCenterZoom(cz[0], cz[1]);
+
+        }
+
+    }
+
+    function calcCrow(lat1, lon1, lat2, lon2) {
+        var R = 6371; // km
+        var dLat = toRad(lat2 - lat1);
+        var dLon = toRad(lon2 - lon1);
+        var lat1 = toRad(lat1);
+        var lat2 = toRad(lat2);
+
+        var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.sin(dLon / 2) * Math.sin(dLon / 2) * Math.cos(lat1) * Math.cos(lat2);
+        var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        var d = R * c;
+        return d;
+    }
+
+    // Converts numeric degrees to radians
+    function toRad(Value) {
+        return Value * Math.PI / 180;
+    }
+}
+
+function careerForm() {
+    if (doc.el('.careerFileUpload').exist) {
+        doc.elementListner('.careerFileUpload', 'change', function () {
+            console.log('change file')
+
+            if (this.files.length > 0) {
+                var fileName = this.files.item(0).name;
+                doc.el('.file_name').textContent = fileName;
+            } else {
+                doc.el('.file_name').textContent = "";
+            }
+        });
+
+        $(document).on('k2trigger', function (e, msg) {
+            console.log(msg);
+            if (msg.modul == 'k2careerForm' && msg.action == 'sendCareer') {
+                if (msg.post == 'start') {
+                    //load 
+                    loading(true);
+                    doc.el('.error_form_career').style.display = "none";
+                    doc.el('.done_form_career').style.display = "none";
+                } else if (msg.post == 'end' && !msg.fail) {
+                    // odesláno
+                    doc.el('.done_form_career').style.display = "block";
+                    const forms = document.querySelectorAll('.k2careerForm');
+                    if(forms.length > 0) {
+                      forms.forEach(form => {
+                        form.reset();
+                      })
+                    }
+                    loading(false);
+
+                } else {
+                    loading(false);
+                    doc.el('.error_form_career').style.display = "block";
+                    //chyba 
+                }
+            }
+        })
+    }
+}
+
+function swiperMainBanner3() {
+    console.log('swiper special')
+    var swiperEl = document.querySelector('.mainBanner3');
+    if (swiperEl) {
+        var slideTitles = [];
+        swiperEl.querySelectorAll('.bannerItem').forEach(function (el) {
+            slideTitles.push(el.getAttribute('data-title'));
+        })
+        var swiper = new Swiper(swiperEl.el('.swiper-container'), {
+            spaceBetween: 0,
+            //effect: "fade", 
+            loop: true,
+            autoplay: {
+                delay: 2500,
+                disableOnInteraction: false,
+            },
+            pagination: {
+                el: swiperEl.el(".pagination"),
+                clickable: true,
+                type: 'bullets',
+            }
+            /* pagination: {
+                el: swiperEl.el(".pagination"),
+                clickable: true,
+                renderBullet: function (index, className) {
+                    return '<div class="pagination_item ' + className + '"><div class="pagination_item_content">' + slideTitles[index] + "</div></div>";
+                },
+            }, */
+        });
+    }
+}
+
+function productSlider() {
+    var media820 = window.matchMedia("(max-width: 820px)");
+
+    doc.allEl('.product_slider').forEach(function (t) {
+        console.log(t);
+        var scrollbar = t.el('.swiper-scrollbar'),
+            nextNav = t.el('.product_slider-next'),
+            prevNav = t.el('.product_slider-prev'),
+            sliderEl = t.el('.swiper-container'),
+            sliderProduct = null;
+
+        //function initSliderProduct() {
+        sliderProduct = new Swiper(t.el('.swiper-container'), {
+            speed: 400,
+            roundLengths: true,
+            preloadImages: false,
+            slideToClickedSlide: false,
+            //spaceBetween: 20,
+            /*  mousewheel: {
+                 releaseOnEdges: true,
+             }, */
+            lazy: {
+                elementClass: 'js_lazy_img',
+                loadPrevNext: true,
+                preloaderClass: 'loading'
+            },
+            /*  scrollbar: {
+                 el: scrollbar, 
+                 draggable: true,
+                 dragSize: 150
+             }, */
+            navigation: {
+                nextEl: nextNav,
+                prevEl: prevNav,
+            },
+            breakpoints: {
+                560: {
+                    slidesPerView: 2
+                },
+                675: {
+                    slidesPerView: 3
+                },
+                980: {
+                    slidesPerView: 4
+                }
+            }
+        });
+        //}
+
+        //changeMedia(media820)
+        //media820.addListener(changeMedia);
+
+        function changeMedia(x) {
+            if (x.matches) {
+                if (sliderProduct !== null) {
+                    sliderProduct.destroy(true, true);
+                }
+
+                sliderEl.classList.remove('swiper-container');
+                sliderEl.el('.swiper-wrapper').classList.add('swiper-wrapper-temp');
+                sliderEl.el('.swiper-wrapper').classList.remove('swiper-wrapper');
+                sliderEl.allEl('.swiper-slide').forEach(function (t) {
+                    t.classList.add('swiper-slide-temp')
+                    t.classList.remove('swiper-slide')
+                });
+            } else {
+                console.log('init slide');
+                sliderEl.classList.add('swiper-container');
+                sliderEl.el('.swiper-wrapper-temp').classList.add('swiper-wrapper');
+                sliderEl.el('.swiper-wrapper-temp').classList.remove('swiper-wrapper-temp');
+                sliderEl.allEl('.swiper-slide-temp').forEach(function (t) {
+                    t.classList.add('swiper-slide')
+                    t.classList.remove('swiper-slide-temp')
+                });
+                initSliderProduct()
+            }
+        }
+    });
+}
+
+function scrollToEl() {
+    document.querySelectorAll('.js_scrollTo').forEach(function (el) {
+        el.addEventListener('click', function (e) {
+            e.preventDefault();
+
+            var id = this.getAttribute('href');
+
+            //ScrollTo top of element - k2axFixedHeader
+            if (id == 0 || !document.querySelector(id)) {
+                document.body.scrollTop = document.documentElement.scrollTop = 0;
+            }
+            else {
+                var fixedHeader = document.querySelector(".k2axFixedHeader");
+                if (fixedHeader) fixedHeader = fixedHeader.offsetHeight;
+                else fixedHeader = 0;
+
+                var positionY = document.querySelector(id).getBoundingClientRect().top + document.documentElement.scrollTop - fixedHeader;
+                window.scrollTo({ top: positionY, behavior: 'smooth' });
+            }
+        });
+    });
+
+}
+
+function descriptionJs() {
+    document.querySelectorAll('.descriptionShort_js').forEach(function (desc) {
+        if (document.querySelector('.view_more')) {
+            var rect = document.querySelector('.view_more').getBoundingClientRect();
+            var cont = desc.getBoundingClientRect();
+            if (!(rect.top < (cont.top + cont.height) && rect.top >= (cont.top))) { //negace pokud se nachází v zobrazení
+                document.querySelector('.view_more').classList.add('absolute');
+            }
+
+        }
+    });
+}
+function variantParametersJs() {
+    var pageHref = window.location.href;
+    document.querySelectorAll('.variant_parameters .variant_parameter').forEach(function (item) {
+        var href = item.querySelector("a[href]").getAttribute("href");
+        if (pageHref.includes(href)) {
+            item.querySelector('.variant_parameters_item').classList.add('active');
+        }
+    });
+}
+
+function variantBuyErrorJs() {
+    document.querySelectorAll(".js_variantBuyError").forEach(function (item) {
+        item.addEventListener("click", function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var selector = item.getAttribute("data-selector");
+            var select = document.querySelector(selector);
+            if (select) {
+                select.style.display = "flex";
+                let msg = { modul: "k2fx4detail" };
+                hiddenMessageTime(e, msg);
+            }
+        });
+    });
+}

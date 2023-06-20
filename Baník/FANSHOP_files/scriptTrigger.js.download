@@ -1,0 +1,29 @@
+
+window.addEventListener('DOMContentLoaded', function (event) {
+    specialPreBasketForConfig();
+});
+
+function specialPreBasketForConfig(){
+     $(document).on('k2trigger', function (e, msg) {
+     if (msg.modul === "m5orderProductBuyPrebasket") {
+      if (msg.state === 'end' && msg.action === 'load') {
+            console.warn('special');
+            e.stopImmediatePropagation();
+            valConfigNote = doc.el('.k2productBuyNote').value;
+
+            if(!!!doc.querySelector('.k2productBuyNote.kit_note')){
+              if(!!valConfigNote){
+                  doc.el('.is_config').classList.add('config_active');
+                  dataConfig = JSON.parse(valConfigNote);
+                  doc.el('.is_config_text').textContent = "("+dataConfig.number+") " + dataConfig.name.toUpperCase();
+              }
+            }
+
+            loading(false);
+            preBasketEl = doc.el('#itemPrebasket');
+            popup('prebasket', preBasketEl.getAttribute('data-title'), preBasketEl);
+            freeshippingLine();
+         }
+     }
+ });
+}

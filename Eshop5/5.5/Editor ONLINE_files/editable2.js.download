@@ -1,0 +1,73 @@
+console.log("%cE%cD%cI%cT%cA%cB%cL%cE%c %cM%cO%cD%cE", "color: #2900b8;", "color: #40C71F;", "color: #de00ab;", "color: #fdc42c;", "color: #6A8693;", "color: #EC8802;", "color: #9D44DE;", "color: #1F1C4D;", "color: #92812D;", "color: #7A412C;", "color: #73936F;", "color: #8eb800;", "color: #de3200;");
+(function () {
+  var post = x(currentExecutingScript());
+  var inAction = false;
+
+  $(document).on('click', '#k2editableSave', function (e) {
+    e.preventDefault();
+    editableSave();
+  });
+
+  function editableSave() {
+    var _modul = 'k2editable';
+    var _action = 'save';
+    var batch = {};
+    var order = {};
+    var crc = '';
+    var ID = 0;
+    $(".k2editableContent.k2editableContentChanged").each(function () {
+      var el = $(this);
+      var attr = el.attr('data-k2-editable');
+      var val = el.html();
+      //console.log(attr);
+      if (attr) {
+        batch[attr] = val;
+      }
+    });
+
+    var container = $('.k2pageContainer');
+    if (container.hasClass('k2editableOrderChanged')) {
+      var i = 0;
+      $(".k2pageContainer .k2tx2").each(function () {
+        var el = $(this);
+        var id = el.attr('data-k2-id');
+        order[i] = id;
+        i++;
+      });
+      crc = container.attr('data-k2-order');
+      ID = container.attr('data-k2-id');
+    }
+    console.log(order);
+
+    $(document).trigger('k2trigger', [{ modul: _modul, state: 'start', action: _action }]);
+    $.post(post, {
+      l: 1,
+      batch: JSON.stringify(batch),
+      order: JSON.stringify(order),
+      crc: crc,
+      ID: ID,
+      langID: $('body').attr('data-k2-lang')
+    }, function (data) {
+      console.log('DATA = ' + data);
+      var d = tryParseJSON(data);
+      if (typeof d === 'object') {
+        var fail = false;
+        if (d.batch && d.batchFailed) {
+          fail = true;
+        }
+        if (d.order && d.orderFailed) {
+          fail = true;
+        }
+        if (!fail) {
+          $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: false, msg: [] }]);
+        } else {
+          $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: true, msg: [] }]);
+          console.log(d);
+        }
+      } else {
+        console.log(data);
+      }
+    });
+
+  }
+})();///////////////////////////////////////////////////////////////////////////

@@ -1,0 +1,130 @@
+
+var post = x(currentExecutingScript());
+var inAction = false;
+var ajaxRequests = new Array();
+
+
+
+$(document).on('click', '.k2fx0complaint .k2send', function (e) {
+  e.preventDefault();
+  sendComplaintForm($(this));
+});
+
+function sendComplaintForm(btn) {
+  console.log('inAction ' + inAction);
+  var _modul = 'k2fx0complaint';
+  var _action = 'send';
+  var fce = btn.closest('.' + _modul);
+  if (fce.length) {
+    var check = checkInputs(fce, 0);
+    var isValid = check.isValid;
+    if (!inAction && isValid) {
+      inAction = true;
+      var inputs = getInputs(fce);
+      inputs = JSON.stringify(inputs);
+      $(document).trigger('k2trigger', [{ modul: _modul, state: 'start', action: _action }]);
+      $.post(post, {
+        l: 1,
+        inputs: inputs
+      }, function (data) {
+        //console.log('DATA = ' + data);
+        var d = tryParseJSON(data);
+        if (typeof d === 'object') {
+          console.log(d);
+          if (d.fail == false) {
+            downloadDataRefresh(d.id)
+            $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: false, msg: [k2msg] }]);
+          } else {
+            $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: true, msg: [k2msg] }]);
+          }
+        }
+        inAction = false;
+      });
+    }
+  }
+}
+
+
+function downloadDataRefresh(RID) {
+  var _modul = 'k2tx0complaintDownload';
+  var _action = 'refresh';
+  var fce = $('.' + _modul);
+  var CRC = fce.attr('data-k2-crc');
+  if (RID) {
+    $(document).trigger('k2trigger', [{ modul: _modul, post: 'start', action: _action }]);
+    $.post(post, {
+      l: 2,
+      CRC: CRC,
+      RID: RID
+    }, function (data) {
+      console.log('DATA = ' + data);
+      var d = tryParseJSON(data);
+      console.log(d);
+      if (typeof d === 'object' && d.fail == false) {
+        fce.html(d.html);
+        $(document).trigger('k2trigger', [{ modul: _modul, post: 'end', action: _action, fail: false, msg: [] }]);
+      } else {
+        fce.html(d.html);
+        $(document).trigger('k2trigger', [{ modul: _modul, post: 'end', action: _action, fail: true, msg: [] }]);
+        console.log(d);
+      }
+    }); //endpost
+  } else {
+    console.error('ERROR: RID');
+  }
+}
+
+$(document).on('click', '.k2tx0complaintDownload .k2complaintDownloadLabel', function (e) {
+  e.preventDefault();
+  downloadComplaintDocument($(this), 1);
+});
+
+$(document).on('click', '.k2tx0complaintDownload .k2complaintDownloadProtocol', function (e) {
+  e.preventDefault();
+  downloadComplaintDocument($(this), 2);
+});
+
+function downloadComplaintDocument(btn, type) {
+  console.log('inAction ' + inAction);
+  var _modul = 'k2tx0complaintDownload';
+  var _action = 'download';
+  var fce = btn.closest('.' + _modul);
+  var RID = btn.attr('data-k2-rid');
+  var filename = btn.attr('data-k2-filename');
+  if (typeof filename === 'undefined') {
+    var filename = 'download';
+  }
+  if (fce.length) {
+    if (!inAction && type && RID) {
+      inAction = true;
+      $(document).trigger('k2trigger', [{ modul: _modul, state: 'start', action: _action }]);
+      $.post(post, {
+        l: 3,
+        RID: RID,
+        type: type
+      }, function (data) {
+        //console.log('DATA = ' + data);
+        var d = tryParseJSON(data);
+        if (typeof d === 'object') {
+          console.log(d);
+          if (d.fail == false && d.pdf) {
+            downloadPDF(d.pdf, filename);
+            $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: false, msg: [k2msg] }]);
+          } else {
+            $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: true, msg: [k2msg] }]);
+          }
+        }
+        inAction = false;
+      });
+    }
+  }
+}
+
+function downloadPDF(pdf, name) {
+  const linkSource = `data:application/pdf;base64,${pdf}`;
+  const downloadLink = document.createElement("a");
+  const fileName = name + ".pdf";
+  downloadLink.href = linkSource;
+  downloadLink.download = fileName;
+  downloadLink.click();
+}

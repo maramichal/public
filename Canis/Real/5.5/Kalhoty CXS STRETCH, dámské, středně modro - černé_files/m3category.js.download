@@ -1,0 +1,387 @@
+window.k2m3 = (function () {
+  var post = x(currentExecutingScript());
+  var inAction = false;
+  var filterStart = false;
+  var filter = {};
+  var filterProducts = {};
+  var filterPriceMin = null;
+  var filterPriceMax = null;
+  var filterPrices = null;
+  var filterPrContainer = null;
+  var filterFlContainer = null;
+  var filterAvContainer = null;
+  var filterMaContainer = null;
+  var filterPaContainer = null;
+  var filterBtnNum = null;
+  var filterBtn = null;
+  var filterSelector = '';
+  //var filterAll = [];
+
+  $(document).ready(function () {
+    if (!filterStart) {
+      filterInit();
+    }
+  });
+
+  $(document).on('click', '.k2fx3filterLite .k2btnFilter', function (e) {
+    e.preventDefault();
+    filterLite($(this));
+  });
+
+  function filterLite(btn) {
+    var fce = btn.closest('.k2fx');
+    fce.find('.k2click').val(1);
+    var _modul = 'k2tx3filterLite';
+    var _action = 'load';
+    var filter = getFilterLite(fce);
+    var CRC = $('.k2tx3products').attr('data-k2-crc');
+    var ID = btn.attr('data-k2-id');
+    var hash = btn.attr('data-k2-hash');
+    var redirect = btn.attr('data-k2-redirect');
+    console.log(filter);
+    if (ID && CRC && filter && !inAction) {
+      $(document).trigger('k2trigger', [{ modul: _modul, state: 'start', action: _action }]);
+      $.post(post, {
+        l: 2,
+        filter: JSON.stringify(filter),
+        CRC: CRC,
+        ID: ID,
+        hash: hash
+      }, function (data) {
+        //console.log('DATA = ' + data);
+        var d = tryParseJSON(data);
+        if (typeof d === 'object') {
+          console.log(d);
+          if (d.ok) { //filtr
+            console.log('filterLite');
+            if (d.hasOwnProperty('html')) {
+              $('.k2tx3products').replaceWith(d.html);
+              filterLiteHref(d.href);
+            }
+            $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: false, msg: [] }]);
+          } else if (d.isUrl) { //presmerovani na virtualni nebo z virtualni
+            console.log('filterLiteRedirect');
+            $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: false, msg: [], data: { d } }]);
+            if (d.isRedirect && redirect) {
+              window.location = d.toUrl.urlHref;
+            }
+          } else {
+            console.log('filterLiteFail');
+            console.log(d);
+            $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: true, msg: [] }]);
+          }
+        } else {
+          console.log('DATA = ' + data);
+        }
+        inAction = false;
+      }); //endpost
+    } else {
+      console.log(ID, CRC, filter, inAction);
+    }
+  }
+
+  //new URL & searchParams nejde bo IE sucks
+  // polyfill pro URL = https://raw.githubusercontent.com/lifaon74/url-polyfill/master/url-polyfill.min.js
+  function filterLiteHref(href) {
+    if (href) {
+      //console.log(href);
+      var newParameters = href.substring(8).split("&");
+      var url = new URL(location.href);
+      var search_params = url.searchParams;
+      search_params.delete('filter');
+      search_params.delete('m5fma');
+      search_params.set('filter', newParameters[0]);
+
+      if (newParameters[1]) {
+        secondParameter = newParameters[1].split('=');
+        search_params.set(secondParameter[0], secondParameter[1]);
+      }
+      url.search = search_params.toString();
+      var newUrl = url.toString();
+
+      changeAddressBarUrl(newUrl, true);
+      $(".k2fx3settings").find('[data-k2="countContainer"] a,[data-k2="sortContainer"] a').each(function () {
+        var el = $(this);
+        var at = el.attr('href');
+        var ex = at.split('&');
+        var len = ex.length;
+        //console.log(ex);
+        if (len > 1) {
+          el.attr('href', ex[0] + href);
+        } else {
+          el.attr('href', at + href);
+        }
+      });
+    }
+  }
+
+  $(document).on('change', '.k2fx3filterLite .k2filterRAF,.k2fx3filterLite .k2filterRAT', function (e) {
+    e.preventDefault();
+    filterGetRange();
+  });
+
+  function getFilterLite(fce) {
+    filterGetRange();
+    var out = {};
+    out['vmin'] = fce.find('[name="k2priceMin"]').attr('min');
+    out['vmax'] = fce.find('[name="k2priceMax"]').attr('max');
+    out['inp'] = getInputs(fce);
+    if (!out['inp']['k2priceMin']) { out['inp']['k2priceMin'] = 0; }
+    if (!out['inp']['k2priceMax']) { out['inp']['k2priceMax'] = 0; }
+    out['inp']['k2priceMin'] = parseInt(out['inp']['k2priceMin'].toString().replace(/ /g, ""));
+    out['inp']['k2priceMax'] = parseInt(out['inp']['k2priceMax'].toString().replace(/ /g, ""));
+    return out;
+  }
+
+  $(document).on('change', '.k2fx3filter .k2priceMin,.k2fx3filter .k2priceMax', function (e) {
+    e.preventDefault();
+    filterChange();
+  });
+
+  $(document).on('change', filterSelector + ' .k2filterCB,' + filterSelector + ' .k2filterRAF,' + filterSelector + ' .k2filterRAT', function (e) {
+    e.preventDefault();
+    filterChange();
+  });
+
+  $(document).on('click', filterSelector + ' .k2btnFilterReset', function (e) {
+    e.preventDefault();
+    filterReset();
+  });
+
+  function filterInit() {
+    if ($('.k2fx3filter').length) {
+      filterSelector = '.k2fx3filter';
+    } else if ($('.k2fx4searchDetailFilter [data-k2="k2filterContainer"]').length) {
+      filterSelector = '.k2fx4searchDetailFilter';
+    }
+    console.log('filterSelector ' + filterSelector);
+    if (filterSelector) {
+      //
+      filterBtnNum = $(filterSelector + ' .k2btnFilterNum');
+      filterBtn = $(filterSelector + ' .k2btnFilter');
+      filterPriceMin = $(filterSelector + ' .k2priceMin');
+      filterPriceMax = $(filterSelector + ' .k2priceMax');
+      filterPrContainer = $(filterSelector + ' .filterPrContainer');
+      filterFlContainer = $(filterSelector + ' .filterFlContainer');
+      filterAvContainer = $(filterSelector + ' .filterAvContainer');
+      filterMaContainer = $(filterSelector + ' .filterMaContainer');
+      filterPaContainer = $(filterSelector + ' .filterPaContainer');
+      //pr
+      filterPrices = $(filterSelector + ' .k2JS').attr('data-k2-js');
+      if (filterPrices) {
+        filterPrices = window.atob(filterPrices);
+        filterPrices = tryParseJSON(filterPrices);
+      } else {
+        filterPrices = null;
+      }
+      if (filterPrices) {
+        filterProducts.pr = {};
+        for (var i in filterPrices) {
+          //console.log(i + ' = ' + filterPrices[i]);
+          filterProducts.pr[i] = filterPrices[i].split(',');
+        }
+      } else {
+        //console.log('filterPrices not set');
+        filterPrices = null;
+      }
+      filterProducts.c = {};
+      filterProducts.f = {};
+      filterProducts.a = {};
+      filterProducts.m = {};
+      filterProducts.b = {};
+      $(filterSelector + ' .k2filterCB').each(function () {
+        var cb = $(this);
+        var id = cb.attr('data-k2-id');
+        var ids = cb.attr('data-k2-ids').split(',');
+        //filterAll.push(ids);
+        var b = id.charAt(0);
+        var par = '';
+        var num = 0;
+        if (b == 'b') {
+          s = id.substr(1).split('l');
+          par = s[0];
+          num = s[1];
+          if (!filterProducts.b.hasOwnProperty(par)) {
+            filterProducts.b[par] = {};
+          }
+          filterProducts[b][par][num] = ids;
+        } else if (b != '{') { //search bez vysledku nepreklada sablonu
+          num = id.substr(1);
+          filterProducts[b][num] = ids;
+        }
+        //console.log(id+' = '+b+' par='+par+' num='+num);
+      });
+      //console.log('filterStart');
+      //
+      filterStart = true;
+      filterChange();
+      return true;
+    } else {
+      filterSelector = '#SegalNaToPrisel';
+      console.log('filter not found');
+      return false;
+    }
+  }
+
+  function filterGetPrice() {
+    filter.min = 0;
+    filter.max = 0;
+    filter.zmin = 0;
+    filter.zmax = 0;
+    if (filterPrices) {
+      var min = parseInt(filterPriceMin.val().toString().replace(" ", ""));
+      var max = parseInt(filterPriceMax.val().toString().replace(" ", ""));
+      var zmin = parseInt(filterPriceMin.attr('min'));
+      var zmax = parseInt(filterPriceMax.attr('max'));
+      if (min > zmax) { //clamp
+        min = zmax;
+      } else if (min < zmin) {
+        min = zmin;
+      }
+      if (max > zmax) { //clamp
+        max = zmax;
+      } else if (max < zmin) {
+        max = zmin;
+      }
+      if (max < min) {
+        max = min;
+      }
+      filterPriceMin.val(min);
+      filterPriceMax.val(max);
+      filter.min = min;
+      filter.max = max;
+      filter.zmin = zmin;
+      filter.zmax = zmax;
+      //console.log('min=' + min + ' max=' + max+' zmin=' + zmin + ' zmax=' + zmax);
+    }
+  }
+
+  function filterGetRange() { //v searchi params nejsou
+    //console.log('filterGetRange');
+    $('.k2fx3filter [data-k2="filterPaTxRange"],.k2fx3filterLite [data-k2="filterPaTxRange"]').each(function () {
+      var fn = 0;
+      var tn = 0;
+      var fmin = 0;
+      //var tmax = 0;
+      var total = 0;
+      var container = $(this);
+      //container.find('.k2filterCB').prop('checked', false);
+      container.find('.k2filterRAF').each(function () {
+        el = $(this);
+        //var parF = el.attr('name');
+        n = parseInt(el.attr('data-k2-n'));
+        if (el.prop('checked')) {
+          fn = n;
+          fmin = n;
+        }
+      });
+      container.find('.k2filterRAT').each(function () {
+        el = $(this);
+        //var parT = el.attr('name');
+        n = parseInt(el.attr('data-k2-n'));
+        if (n < fmin) {
+          el.prop('checked', false).attr('disabled', 'disabled');
+        } else {
+          el.removeAttr('disabled');
+        }
+        if (el.prop('checked')) {
+          tn = n;
+          tmax = n;
+        }
+        total = n;
+      });
+      //console.log(total, fn, tn);
+      if (fn > 0) {
+        if (tn == 0) {
+          tn = total;
+        }
+        container.find('.k2filterCB').each(function () {
+          el = $(this);
+          n = parseInt(el.attr('data-k2-n'));
+          if (n >= fn && n <= tn) {
+            el.prop('checked', true);
+          } else {
+            el.prop('checked', false);
+          }
+        });
+      }
+    });
+  }
+
+  function filterChange() {
+    filterGetPrice();
+    filterGetRange();
+    filter.choice = [];
+    $(filterSelector + ' .k2filterCB').each(function () {
+      var cb = $(this);
+      if (cb.is(":checked")) {
+        filter.choice.push(cb.attr('data-k2-id'));
+      }
+    });
+    filterRecalc();
+  }
+
+  function filterReset() {
+    console.log('filter reset');
+    $(filterSelector + ' .k2filterCB,' + filterSelector + ' .k2filterRAF,' + filterSelector + ' .k2filterRAT').each(function () {
+      $(this).prop('checked', false);
+    });
+    if (filterPrices) {
+      filterPriceMin.val(filterPriceMin.attr('min'));
+      filterPriceMax.val(filterPriceMax.attr('max'));
+    }
+    filterChange();
+  }
+
+  function filterRecalc() {
+    var _modul = 'k2tx3filter';
+    var _action = 'recalc';
+    var csrf = $(filterSelector).find('.k2btnFilter').attr('data-k2-csrf');
+    var ID = $(filterSelector).find('.k2btnFilter').attr('data-k2-id');
+    if (filter && !inAction) {
+      $(document).trigger('k2trigger', [{ modul: _modul, state: 'start', action: _action }]);
+      $.post(post, {
+        l: 1,
+        filter: JSON.stringify(filter),
+        products: JSON.stringify(filterProducts),
+        csrf: csrf,
+        ID: ID
+      }, function (data) {
+        //console.log('DATA = ' + data);
+        var d = tryParseJSON(data);
+        if (typeof d === 'object' && d.hasOwnProperty('num')) {
+          console.log(d);
+          if (!d.href || d.href == '?') {
+            d.href = window.location.pathname;
+          }
+          if (filterBtnNum) {
+            filterBtnNum.text(d.num);
+            filterBtn.attr('href', d.href);
+          }
+          for (const [pid, pval] of Object.entries(d.numVar)) {
+            //console.log(pid, pval);
+            $('[data-k2-id="' + pid + '"]').closest('label').find('c2').text(pval);
+            $(filterSelector + ' .k2varcnt' + pid).text(pval);
+
+            var cb = $(filterSelector + ' [data-k2-id="' + pid + '"]');
+            cb.attr('data-k2-varcnt', pval);
+            if (pval || cb.prop('checked')) {
+              cb.removeAttr('disabled');
+            } else { // 0
+              cb.attr('disabled', 'disabled');
+            }
+
+          }
+          $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: false, msg: [] }]);
+        } else {
+          console.log(data);
+        }
+        inAction = false;
+      }); //endpost
+    }
+  }
+
+  return {
+    filterInit: filterInit
+  };
+})();

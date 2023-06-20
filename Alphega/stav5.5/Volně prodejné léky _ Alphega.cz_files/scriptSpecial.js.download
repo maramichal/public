@@ -1,0 +1,227 @@
+document.addEventListener("DOMContentLoaded", function (event) {
+    $(document).on('k2trigger', function (e, msg) {
+        if ((msg.modul === 'k2tx0complaintDownload') && (msg.post === 'end') && (msg.action === 'refresh') && !msg.fail) {
+            console.log('smazat formular a zobrazit soubroy ke stazeni')
+            document.querySelector('.k2fx0complaint form').reset();
+            document.querySelector('.k2fx0complaint').parentElement.classList.add('view_file');
+        }
+    })
+
+phoneInOrder();
+    orderStep2();
+
+})
+
+function phoneInOrder() {
+    var el = document.querySelector('.phone_order_wrap');
+    if (el) {
+        select = el.querySelector('select');
+        inputFake = el.querySelector('.phone_order_input_fake');
+        input = el.querySelector('.phone_order_input');
+
+        select.addEventListener('input', createPhone);
+        inputFake.addEventListener('input', createPhone);
+
+        function createPhone() {
+            input.value = select.value + '' + inputFake.value;
+        }
+    }
+}
+
+function popupComplaint() {
+    var items = document.querySelectorAll('.new_complaint');
+
+    items.forEach(function (item) {
+        item.addEventListener('click', function (e) {
+            e.preventDefault();
+            var elView = document.querySelector('#new_complaint .view_file');
+
+            if (elView) {
+                elView.classList.remove('view_file')
+            }
+            orderId = this.getAttribute('data-order');
+            console.log(orderId)
+            if (orderId) {
+                document.querySelector('#new_complaint .k2order').value = orderId;
+            } else {
+                document.querySelector('#new_complaint .k2order').value = "";
+            }
+            document.querySelector('#new_complaint').classList.add('active');
+
+        });
+    });
+
+
+    addPopupClose();
+
+    function addPopupClose() {
+        var itemsPopupClose = document.querySelectorAll('#new_complaint .close_btn');
+        console.log(itemsPopupClose)
+
+        itemsPopupClose.forEach(function (itemClose) {
+            itemClose.addEventListener('click', function (e) {
+                document.querySelector('#new_complaint').classList.remove('active');
+            });
+        });
+    }
+}
+
+function orderStep2() {
+    var el = document.querySelector('.step2_order');
+    if (el) {
+        var formUser = el.querySelector('[data-k2="user"]');
+          el.querySelectorAll('.k2ZIP').forEach(function(t){
+           t.maxLength = 5;  
+        });  
+        el.querySelectorAll('[type="tel"]').forEach(function(t){
+           t.maxLength = 9;  
+        }); 
+      /*  el.querySelectorAll('.k2street').forEach(function(t){
+           t.maxLength = 150;  
+        }); */
+        el.querySelectorAll('.k2city').forEach(function(t){
+           t.maxLength = 50;  
+        }); 
+        el.querySelectorAll('.k2name').forEach(function(t){
+           t.maxLength = 50;  
+        }); 
+        //formUser.querySelector('.k2userName').maxLength = 30;
+        //formUser.querySelector('.k2userSurname').maxLength = 30;
+
+
+        /*  document.querySelector('.user_address').querySelectorAll('input').forEach(function (t) {
+
+                  t.addEventListener('input', copyInputData);
+
+
+              }
+          })*/
+        document.querySelector('.k2tx5address').querySelectorAll('input, select, textarea').forEach(function (t) {
+            t.addEventListener('input', saveDataShipping);
+            if (t.nodeName === "SELECT") {
+                t.addEventListener('blur', saveDataShipping);
+            }
+        })
+        loadDataShipping();
+    }
+
+    /*function copyInputData() {
+        if (this.name == "k2userName" || this.name == "k2userSurname") {
+            document.querySelector('.delivery_address_form .k2name').value = this.value;
+        } else if (this.name == "k2userEmail") {
+            document.querySelector('.delivery_address_form .k2name').value = this.value;
+        } else if (this.name == "k2wdPhone") {
+
+        }
+    }*/
+
+    function saveDataShipping() {
+        var allData = [];
+        var formDataUser = new FormData(document.querySelector('.k2tx5address .user_address'));
+        var formDataDelivery = new FormData(document.querySelector('.k2tx5address .delivery_address_form'));
+        var formDataInvoice = new FormData(document.querySelector('.k2tx5address .invoice_address'));
+        var formDataNote = new FormData(document.querySelector('.save_form_note'));
+
+        localStorage.setItem("shippingDataUser", JSON.stringify(formDataToJson(formDataUser)));
+
+        if (!document.querySelector('.k2tx5address .delivery_address_form').classList.contains('k2notRequired')) {
+            localStorage.setItem("shippingDataDelivery", JSON.stringify(formDataToJson(formDataDelivery)));
+        } else {
+            localStorage.removeItem("shippingDataDelivery")
+        }
+
+        if (!document.querySelector('.k2tx5address .invoice_address').classList.contains('hide')) {
+            localStorage.setItem("shippingDataInvoice", JSON.stringify(formDataToJson(formDataInvoice)));
+        } else {
+            localStorage.removeItem("shippingDataInvoice")
+        }
+
+
+        if (document.querySelector('.save_form_note')) {
+            localStorage.setItem("shippingNote", JSON.stringify(formDataToJson(formDataNote)));
+        }
+
+        //var json = JSON.stringify(object); 
+        /*localStorage.setItem("shippingData", json);*/
+        inProgress = false;
+        /*elBtn.click();*/
+
+    }
+
+    function loadDataShipping() {
+        console.log("neprihlaseno");
+        formDataFromJson(JSON.parse(localStorage.getItem("shippingDataUser")), ".user_address");
+        formDataFromJson(JSON.parse(localStorage.getItem("shippingDataDelivery")), ".delivery_address_form");
+        formDataFromJson(JSON.parse(localStorage.getItem("shippingDataInvoice")), ".invoice_address");
+        formDataFromJson(JSON.parse(localStorage.getItem("shippingNote")), ".save_form_note");
+        if (!document.querySelector('.k2invAsDel').checked) {
+            document.querySelector('[data-k2="invoice"]').classList.remove('hide');
+        }
+
+    }
+
+    function formDataToJson(fd) {
+        var object = {};
+
+        fd.forEach(function (value, key) {
+            object[key] = value;
+        });
+        return object;
+    }
+
+    function formDataFromJson(json, containerClass) {
+        if (json !== null) {
+            if ((containerClass === ".user_address") && (json["deliveryIsInvoice"] === undefined)) {
+                document.getElementsByName("deliveryIsInvoice")[0].checked = true;
+            }
+            if ((containerClass === ".save_form_note") && json["noteOrder"] !== "") {
+                document.querySelector('.save_form_note').closest('.basket_wrap').previousElementSibling.click();
+            }
+            var container = document.querySelector(containerClass);
+            Object.keys(json).forEach(function (key) {
+                el = container.querySelector('[name="' + key + '"]');
+                if ((el.type === "checkbox") && (json[key] === "on")) {
+                    el.checked = true;
+                } else {
+                    el.value = json[key];
+                }
+            })
+        }
+    }
+
+
+    document.querySelectorAll('.logout_link').forEach(function (t) {
+        t.addEventListener('click', function (e) {
+            console.log('click logout')
+            e.preventDefault();
+            removeUserData(true);
+            location.href = t.getAttribute("href");
+        }, false)
+    });
+
+    document.addEventListener('click', function (e) {
+        if (e.target.classList.contains('k2btnLogin') || e.target.closest('.k2btnLogin')) {
+            console.log('login')
+            removeUserData(true);
+        }
+    }, false);
+
+    removeUserData()
+
+}
+
+
+
+function removeUserData(isElForRemove) {
+    var isLogin = document.querySelector('.is_login')
+    var elForRemoveData = document.querySelector('.removeDataUser')
+    isElForRemove === undefined ? isElForRemove = false : false;
+
+    if (elForRemoveData || isElForRemove) {
+        localStorage.removeItem("shippingDataUser")
+        localStorage.removeItem("shippingDataDelivery")
+        localStorage.removeItem("shippingDataInvoice")
+        localStorage.removeItem("shippingNote")
+
+    }
+}

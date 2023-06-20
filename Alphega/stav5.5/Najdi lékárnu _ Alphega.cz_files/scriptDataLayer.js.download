@@ -1,0 +1,464 @@
+document.addEventListener("DOMContentLoaded", function (event) {
+   document.querySelectorAll('.html_wrap iframe[data-k2-consent]').forEach(function(item){
+        item.setAttribute('src', item.getAttribute('data-src'))
+    });
+   /* var isLoginFirst = false;
+    if (document.querySelector('[data-k2="userLogged"]')) {
+        if (!document.cookie.includes('login=true')) {
+            console.log("je přihlašeny ale poprve");
+            document.cookie = 'login=true';
+            isLoginFirst = true;
+        }
+    } else {
+        console.log('není prihlaseny odstranit cookie')
+        document.cookie = "login=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    }*/
+
+
+
+    /*if (!e.cookiePermission.analytics) {
+        return false;
+    }*/
+
+    if (typeof dataLayer !== 'undefined' && typeof analyticsDataLayer !== 'undefined' && analyticsDataLayer.gtag !== 'undefined') {
+        //console.error('test2')
+        var timerAutocomplete = null;
+        console.warn(dataLayer);
+
+        //prihlasení
+       /* if (document.querySelector('[data-k2="userLogged"]')) {
+            if (typeof UserId == "undefined") {
+                gtag_send('login')
+            } else {
+                gtag_send('login', UserId)
+            }
+        }*/
+       /* if (isLoginFirst) {
+            if (typeof UserId == "undefined") {
+                gtag_send('login')
+            } else {
+                gtag_send('login', UserId)
+            }
+        }
+*/
+        // katalog
+        if (analyticsDataLayer.gtag.m3products) {
+
+            fb_send('ViewContent', {
+                "content_category": createContentCategory(false), //kategorie produktu nebo nazev kategorie
+                "content_name": analyticsDataLayer.gtag.m3products.items[0].item_category, // název produktu/kategorie
+                "content_type": "product_group", //product nebo product_group
+                "contents": createContents(analyticsDataLayer.gtag.m3products.items), //produkty
+                "currency": analyticsDataLayer.dataLayer.m1page.currency,
+                // "value": "",
+            });
+                /*"value": analyticsDataLayer.gtag.m5basket.value,
+                "currency": analyticsDataLayer.gtag.m5basket.currency,*/
+            
+            gtag_send('view_item_list', {
+                "items": analyticsDataLayer.gtag.m3products.items
+            })
+        }
+
+        // vyhledavní - stránka
+        if (analyticsDataLayer.gtag.m4search) {
+
+            gtag_send('view_item_list', {
+                "items": analyticsDataLayer.gtag.m4search.items
+            })
+        }
+
+        // detail produktu
+        if (analyticsDataLayer.gtag.m4detail) {
+            var value = "";
+            if (document.querySelector('[itemprop="price"]')) {
+                value = document.querySelector('[itemprop="price"]').getAttribute('content')
+            }
+
+            fb_send('ViewContent', {
+                "content_category": createContentCategory(true), //kategorie produktu nebo nazev kategorie
+                "content_name": analyticsDataLayer.gtag.m4detail.items[0].item_name, // název produktu/kategorie
+                "content_type": "product", //product nebo product_group
+                "contents": createContents(analyticsDataLayer.gtag.m4detail.items), //produkty
+                "currency": analyticsDataLayer.dataLayer.m1page.currency,
+                "value": value
+            });
+
+            gtag_send('view_item', {
+                "value": analyticsDataLayer.gtag.m5basket.value,
+                "currency": analyticsDataLayer.gtag.m5basket.currency,
+                "items": analyticsDataLayer.gtag.m4detail.items
+            })
+        }
+
+        $(document).on('k2trigger', function (e, msg) {
+            console.warn(msg)
+            if (msg.modul === 'm5orderProductBuy' && msg.action === 'add' && msg.state === 'end' && !msg.fail) {
+                //console.error(msg)
+                if (msg.data) {
+                    if (msg.data.analytics) {
+                        console.log(msg.data.analytics)
+                        msg.data.analytics.items[0].price = parseFloat(msg.data.analytics.items[0].price);
+                        msg.data.analytics.items[0].quantity = msg.data.to;
+                        console.log(JSON.parse(JSON.stringify(msg.data.analytics)))
+
+                        var value = "";
+                        setInterval(function () {
+                            if (document.querySelector('[data-add-item-price]')) {
+                                value = document.querySelector('[data-add-item-price]').getAttribute('data-add-item-price')
+                            }
+                        }, 500);
+
+                        fb_send('AddToCart', {
+                            "content_name": msg.data.analytics.items[0].item_name, // název produktu/kategorie
+                            "content_type": "product", //product nebo product_group
+                            "contents": createContents(msg.data.analytics.items), //produkty
+                            "currency": analyticsDataLayer.dataLayer.m1page.currency,
+                            "value": msg.data.analytics.value,
+                        });
+
+
+                        ;
+                        msg.data.analytics.currency;
+                        msg.data.analytics.value = parseInt(msg.data.analytics.value) + parseInt(analyticsDataLayer.gtag.m5basket.value);
+                        delete msg.data.analytics.amount;
+                        gtag_send("add_to_cart", msg.data.analytics);
+                    }
+                }
+            }
+
+            if (msg.modul === 'k2fx4search' && msg.action === 'load' && msg.state === 'end' && !msg.fail) {
+                //console.log('test'); 
+                clearTimeout(timerAutocomplete);
+                timerAutocomplete = setTimeout(function () {
+                    if (!!document.querySelector('.k2searchHref')) {
+                        /*var hrefAutocomplete = document.querySelector('.k2searchHref').href.split(location.origin)[1];
+                        pageViewGA(document.querySelector('.k2searchHref').getAttribute('data-k2-title'), location.origin, hrefAutocomplete) */
+
+                        if (!!document.querySelector(".k2fx4search .k2noItem").getClientRects().length) {
+                            var searchQuery = document.querySelector('.k2fx4search .k2productSearch').value;
+                             gtag('event', "ZeroResults", {
+                                 'event_category': "searchAutocomplete",
+                                 'event_label': searchQuery ? searchQuery : "Blank",
+                                 'value': 1
+                             });
+
+                        } else if (!!document.querySelector(".k2fx4search .k2ifItem").getClientRects().length) {
+                            console.log('nalezeno');
+                            var searchQuery = document.querySelector('.k2fx4search .k2productSearch').value;
+                             gtag('event', "Results", {
+                                 'event_category': "searchAutocomplete",
+                                 'event_label': searchQuery ? searchQuery : "Blank",
+                                 'value': 1
+                             });
+                        }
+                    }
+                }, 300);
+            }
+            /*if (msg.modul === 'm5orderProductBuy' && msg.action === 'set' && msg.state === 'end' && !msg.fail) {
+                if (msg.data.analytics) {
+                    gtag_send("add_to_cart", msg.data.analytics);
+                }
+            }*/
+            // smazat položku v košíku
+            if (msg.modul === 'k2fx5basket' && msg.action === 'del' && msg.state === 'end' && !msg.fail) {
+                if (msg.data.analytics) {
+                          console.log(msg.data.analytics);
+                    console.log(msg.data.analytics.items);
+                        msg.data.analytics.items.item_name = msg.data.analytics.items.name;
+                        msg.data.analytics.items.item_id = msg.data.analytics.items.id;  
+                        msg.data.analytics.items.item_brand = msg.data.analytics.items.brand;
+                         msg.data.analytics.items.price = parseFloat(parseFloat(msg.data.analytics.items.price).toFixed(2))
+                        delete msg.data.analytics.items.name;
+                        delete msg.data.analytics.items.id;
+                        delete msg.data.analytics.items.brand;
+                        delete msg.data.analytics.items.list_position;
+                        delete msg.data.analytics.items.category;
+                    
+                    
+                    msg.data.analytics.value = parseFloat(parseFloat(msg.data.analytics.value).toFixed(2));
+
+                    gtag_send("remove_from_cart", msg.data.analytics);
+                }
+            }
+            // smazat cely košík
+            if (msg.modul === 'k2fx5basket' && msg.action === 'empty' && msg.state === 'end' && !msg.fail) {
+                if (msg.data.analytics) {
+                    console.log(msg.data.analytics.items);
+                    msg.data.analytics.items.forEach(function(item){
+                        item.item_name = item.name;
+                        item.item_id = item.id;  
+                        item.item_brand = item.brand;
+                        item.price = parseFloat(parseFloat(item.price).toFixed(2));
+                        delete item.name;
+                        delete item.id;
+                        delete item.brand;
+                        delete item.category;
+                    });
+                    msg.data.analytics.value = parseFloat(parseFloat(msg.data.analytics.value).toFixed(2));
+
+                    gtag_send("remove_from_cart", msg.data.analytics);
+                }
+            }
+        });
+
+        if (document.querySelector('.k2fx5confirmation') && purchaseGA !== undefined && location.href.indexOf("sent=sent") != -1) {
+            purchaseCloneGA = JSON.parse(JSON.stringify(purchaseGA));
+
+            purchaseCloneGA.shipping = purchaseCloneGA.transport;
+            purchaseCloneGA.value = purchaseCloneGA.value - purchaseCloneGA.tax;
+            delete purchaseCloneGA.transport;
+            purchaseCloneGA.items.forEach(function (item) {
+                item.item_name = item.name;
+                item.item_id = item.id;
+                item.item_id = String(item.id);
+                item.item_brand = item.brand;
+                item.price = item.price;
+                item.price = parseFloat(parseFloat(item.price).toFixed(2));  
+                delete item.name;
+                delete item.id;
+                delete item.brand;
+                delete item.priceInc;
+
+            });
+            console.log(purchaseCloneGA);
+
+            gtag_send("purchase", purchaseCloneGA);
+            fb_send("Purchase", {
+                "content_name": document.title.split(' | ')[0], // název produktu/kategorie
+                "content_type": "product_group", //product nebo product_group
+                "contents": createContents(purchaseCloneGA.items), //produkty
+                "currency": purchaseCloneGA.currency,
+                "value": purchaseCloneGA.value,
+            });  
+            window.history.replaceState(null, null, location.href.replace('sent=sent&', ''));
+        }
+        // 1 krok kosiku
+        if (document.querySelector('.basket_step_1 ') && analyticsDataLayer !== undefined) {
+            //analyticsDataLayer.gtag.m5basket.checkout_step = 1;
+            analyticsDataLayer.gtag.m5basket.items.forEach(function (item) {
+                item.quantity = parseFloat(item.quantity);
+            });
+            gtag_send("view_cart", analyticsDataLayer.gtag.m5basket);
+        }
+        // 2 krok kosiku
+        if (document.querySelector('.basket_step_2') && analyticsDataLayer !== undefined) {
+            //analyticsDataLayer.gtag.m5basket.checkout_step = 2;
+            analyticsDataLayer.gtag.m5basket.items.forEach(function (item) {
+                item.quantity = parseFloat(item.quantity);
+            });
+            gtag_send("begin_checkout", analyticsDataLayer.gtag.m5basket);
+        }
+    }
+
+
+    document.elementListner('.gtag_select_promotion', 'click', function (e) {
+        href = this.getAttribute('href');
+        if (href !== null || href !== "") {
+            //          e.preventDefault();
+            id = this.getAttribute('data-id');
+            locationId = this.closest('.k2fx14byPosition').getAttribute('data-k2-position');
+            promotionName = this.getAttribute('data-promotion-name');
+            creativeName = this.getAttribute('data-creative-name');
+
+            result = {
+                item: [{
+                    promotion_id: id,
+                    promotion_name: promotionName,
+                    creative_name: creativeName,
+                    location_id: locationId
+            }]
+            };
+
+            gtag_send("select_promotion", result);
+        }
+    });
+    document.elementListner('.gtag_product_click', 'click', clickProduct);
+    var searchPage = document.querySelector('.k2fx4searchDetail');
+    if (!!searchPage) {
+        var elasticSearch = searchPage.querySelector('[data-k2="searchElastic"]');
+
+        if (!!elasticSearch) {
+            if (!!!elasticSearch.querySelector('[data-k2="searchBrand"]') && !!!elasticSearch.querySelector('[data-k2="searchCategory"]') && !!!elasticSearch.querySelector('[data-k2="searchProduct"]') && !!!elasticSearch.querySelector('[data-k2="searchBlog"]')) {
+                var searchQuery = getParameterByName("search");
+                //ga("send", "event", "Search", "ZeroResults", searchQuery ? searchQuery : "Blank");
+                /*gtag('event', "ZeroResults", {
+                    'event_category': "search",
+                    'event_label': searchQuery ? searchQuery : "Blank",
+                    'value': 1
+                });*/
+            } else {
+                var searchQuery = getParameterByName("search");
+                /*gtag('event', "Results", {
+                    'event_category': "search",
+                    'event_label': searchQuery ? searchQuery : "Blank",
+                    'value': 1
+                });*/
+            }
+        } else {
+            if (!!searchPage.querySelector(".k2noItem:not(.k2hidden)") || !!searchPage.querySelector(".k2noSearch:not(.k2hidden)")) {
+                var searchQuery = getParameterByName("search");
+                //ga("send", "event", "Search", "ZeroResults", searchQuery ? searchQuery : "Blank");
+                /*gtag('event', "ZeroResults", {
+                    'event_category': "search",
+                    'event_label': searchQuery ? searchQuery : "Blank",
+                    'value': 1
+                });*/
+
+            } else if (!!searchPage.querySelector(".k2ifItem:not(.k2hidden)")) {
+                var searchQuery = getParameterByName("search");
+                /*gtag('event', "Results", {
+                    'event_category': "search",
+                    'event_label': searchQuery ? searchQuery : "Blank",
+                    'value': 1
+                });*/
+            }
+        }
+    }
+
+
+})
+
+function gtag_send(type, data) {
+    console.log(type);
+    console.log(data);
+
+    if (data.items) {
+        if(!Array.isArray(data.items)){
+            console.log('json')
+            var tempArray = [];
+            data.items = [data.items];
+            console.log(data.items);
+        }
+        data.items.forEach(function (item) {
+            item['currency'] = analyticsDataLayer.dataLayer.m1page.currency;
+            var dataAssignment = window["productAssignment" + parseInt(item.item_id)];
+            if (typeof dataAssignment !== 'undefined') {
+                delete item.item_category;
+                Object.entries(dataAssignment).forEach(function (catg, i) {
+                    i = i + 1;
+
+                    if (i == 1) {
+                        item['item_category'] = catg[1].title;
+                    } else {
+                        item['item_category' + i] = catg[1].title;
+                    }
+                });
+            }
+        })
+    }
+
+
+    if (type == "login") {
+        var preData = {
+            event: type,
+            loginMethod: 'email',
+            userId: data
+        };
+
+    } else {
+        var preData = {
+            event: type,
+            ecommerce: data
+        };
+    }
+ 
+
+
+    console.log(preData);
+    dataLayer.push(preData);
+    //dataLayerGTM.push(preData);
+    if(type == "purchase"){
+        dataGAPurchase = JSON.parse(JSON.stringify(data));
+        tempItems = [];
+        dataGAPurchase.items.forEach(function (item) {
+                temp = {};
+                temp.name = item.item_name;
+                temp.id = item.item_id;
+                temp.brand = item.item_brand;
+                temp.category = item.item_category;
+                temp.price = String(item.price);
+                temp.quantity = item.quantity;
+                delete item;
+                tempItems.push(temp);
+            });
+        dataGAPurchase.items = tempItems;
+        console.log(dataGAPurchase);
+        
+        sendAnalyticsData('event', type, dataGAPurchase);
+     
+    }
+}
+
+function sendAnalyticsData(){
+    dataLayerAnalytics.push(arguments);
+}
+function fb_send(type, data) {
+    //console.clear();
+    console.log(type);
+    console.log(data);
+    if(typeof fbq !== 'undefined'){
+        fbq('track', type, data);
+    }
+}
+
+function createContentCategory(isProduct) {
+    var result = [];
+    if (isProduct) {
+        var el = document.querySelectorAll('.item_breadcrumb:not(.item_breadcrumb_first):not([data-k2="itemLast"])');
+    } else {
+        var el = document.querySelectorAll('.item_breadcrumb:not(.item_breadcrumb_first)');
+    }
+    el.forEach(function (b) {
+        result.push(b.textContent.replaceAll(' ', '_'));
+    });
+    //console.log(result.join('-'))
+    return result.join('-');
+}
+
+function createContents(data) {
+    var result = [];
+    data.forEach(function (i) {
+        var itemJson = {};
+        itemJson.id = i.item_id;
+        itemJson.quantity = i.quantity;
+        result.push(itemJson);
+    })
+    console.log(result);
+
+
+    return result;
+}
+
+function clickProduct(e) {
+    //e.preventDefault();
+    var id = this.closest('.product_item').getAttribute('data-product-id').toString();
+    var href = this.getAttribute('href');
+    if (typeof analyticsDataLayer !== 'undefined' && typeof (analyticsDataLayer.gtag) !== 'undefined' && typeof (analyticsDataLayer.gtag.m3products) !== 'undefined') {
+        console.log(href);
+        console.log(id);
+
+        var thisItem = analyticsDataLayer.gtag.m3products.items.filter(function (entry) {
+            return entry.id === id;
+        });
+
+        gtag_send('select_content', {
+            "content_type": "product",
+            "items": thisItem
+        })
+    }
+    console.log('test1');
+
+    //location.href = href;
+}
+
+
+function getParameterByName(name) {
+    url = window.location.href;
+    name = name.replace(/[\[\]]/g, '\\$&');
+    var regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)'),
+        results = regex.exec(url);
+    if (!results) return null;
+    if (!results[2]) return '';
+    return decodeURIComponent(results[2].replace(/\+/g, ' '));
+}

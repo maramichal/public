@@ -1,0 +1,348 @@
+var cookiePermission = (this, function (data) {
+
+    var cookieWrap = document.querySelector('.cookie_new');
+    var cookieContent = cookieWrap.querySelector('.cookie_content');
+    var cookieArray = parseCookie(document.cookie);
+    var notRemoveCookie = [];
+    var cookieAgreeButtons = cookieWrap.querySelectorAll('.cookie_agree_all_btn');
+    var cookieDisagreeButtons = cookieWrap.querySelectorAll('.cookie_disagree_all_btn');
+    var cookieForm = cookieWrap.querySelector('.cookie_form');
+    var isGTM = false;
+    var cookiePopupCloseBtn = document.querySelectorAll('.cookie_popup_close_btn');
+    var cookiePopupSet = cookieWrap.querySelector('.cookie_popup');
+    var stateDataGTM = {};
+    var videosInEditor = document.querySelectorAll('.editable_video_content');
+    var cookieInfoWrap = document.querySelector('.cookie_info_text_wrap');
+    var cookieScan = false;
+    
+    if(data && data.notRemoveCookie == undefined ){
+       notRemoveCookie = [];
+    } else {
+        notRemoveCookie = data.notRemoveCookie;
+    }
+    
+    if(data && data.dataLayerGTM == undefined ){
+       isGTM = false;
+    } else {
+        isGTM = true;
+    }
+ 
+    try {
+      var url = new URL(location.href)
+      var params = new URLSearchParams(url.search);
+      var cookieScanData = params.get('cookieScan'); 
+      cookieScan = (cookieScanData == 'true' ? true : false);
+    } catch(e){
+      console.error(e);
+    }
+                
+
+
+    function parseCookie(cookie) { 
+        cookie = cookie.split(';');
+        for (let i = 0; i < cookie.length; i++) {
+            cookie[i] = cookie[i].split('=');
+            cookie[i][0] = cookie[i][0].trim();
+        }
+        return cookie;
+    }
+
+    document.addEventListener("DOMContentLoaded", function (event) {
+
+        if (data && data.oldCookieSelector) {
+            data.oldCookieSelector.remove();
+        }
+
+        onLoad();
+
+        // set all cookie - AGREE 
+        for (let i = 0; i < cookieAgreeButtons.length; i++) {
+            cookieAgreeButtons[i].addEventListener('click', function (e) {
+                e.preventDefault();
+                var checkboxes = cookieForm.querySelectorAll('.cookie_set_checkbox');
+                var returnArray = {};
+                for (let i = 0; i < checkboxes.length; i++) {
+                    checkboxes[i].checked = true;
+                    returnArray[checkboxes[i]['name']] = checkboxes[i].checked;
+                }
+                setCookie(returnArray);
+            });
+        }
+
+        // set all cookie - DISAGREE   
+        for (let i = 0; i < cookieDisagreeButtons.length; i++) {
+            cookieDisagreeButtons[i].addEventListener('click', function (e) {
+                e.preventDefault();
+                var checkboxes = cookieForm.querySelectorAll('.cookie_set_checkbox');
+                var returnArray = {};
+                for (let i = 0; i < checkboxes.length; i++) {
+                    if (checkboxes[i]['name'] !== 'necessarily') {
+                        checkboxes[i].checked = false;
+                    }
+                    returnArray[checkboxes[i]['name']] = checkboxes[i].checked;
+                }
+                setCookie(returnArray);
+            });
+        }
+
+
+
+        // set cookie from user setting
+        cookieForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+            var checkboxes = this.querySelectorAll('.cookie_set_checkbox');
+            var returnArray = {};
+            for (let i = 0; i < checkboxes.length; i++) {
+                returnArray[checkboxes[i]['name']] = checkboxes[i].checked;
+            }
+            setCookie(returnArray);
+            cookieWrap.classList.remove('active_setting');
+        });
+
+        
+        // close cookie setting
+        for (let i = 0; i < cookiePopupCloseBtn.length; i++) {
+            cookiePopupCloseBtn[i].addEventListener('click', closePopup);
+        }
+        
+        // open cookie setting
+        document.addEventListener('click', function (e) {
+            element = e.target.classList.contains('cookie_set_popup') ? e.target : e.target.closest('.cookie_set_popup');
+            if (element) {
+                openPopup(e)
+
+            }
+        });
+
+
+        // set item cookie - AGREE 
+        document.addEventListener('click', function (e) {
+            element = e.target.classList.contains('cookie_item_agree') ? e.target : e.target.closest('.cookie_item_agree');
+            if (element) {
+                e.preventDefault();
+                var typeCookie = element.dataset.k2ConsentItem;
+
+                cookiePermission[typeCookie] = true;
+                setCookie(cookiePermission);
+
+            }
+        });
+
+
+        function onLoad() {
+            var dataCookie = localStorage.getItem('cookieSet');
+            if (dataCookie === null) {
+                deleteAllData();
+                cookieContent.classList.add('active');
+            }
+            state = JSON.parse(dataCookie);
+            state = state == null ? {} : state;
+ 
+            videosInEditor.forEach(function (t) {   
+                t.querySelector('iframe').parentElement.insertAdjacentHTML('beforeend', cookieInfoWrap.innerHTML); 
+                t.querySelector('.cookie_item_agree').dataset.k2ConsentItem = "marketing";
+            });
+
+            var checkboxes = cookieForm.querySelectorAll('.cookie_set_checkbox');
+            for (let i = 0; i < checkboxes.length; i++) {
+                if (state[checkboxes[i]['name']] == undefined) {
+                    state[checkboxes[i]['name']] = checkboxes[i].checked;
+                } else {
+                    checkboxes[i].checked = state[checkboxes[i]['name']];
+                }
+            }
+
+            id = 0;
+
+            for (name in state) {
+                var elements = document.querySelectorAll('[data-k2-consent="' + name + '"]')
+                for (let i = 0; i < elements.length; i++) {
+                    elements[i].dataset.cookieId = id + '' + i;
+                    // console.error(cookieScan)
+                    if (cookieScan || state[name]) {
+                        if ("SCRIPT" == elements[i].nodeName) {
+                            if ("text/plain" == elements[i].type && elements[i]) {
+                                createScript(elements[i]);
+                            }
+                        } else if ("IFRAME" == elements[i].nodeName || "IMG" == elements[i].nodeName) {
+                            iframeAndImg(elements[i], true);
+                        }
+                    } else {
+                        if ("IFRAME" == elements[i].nodeName || "IMG" == elements[i].nodeName) {
+                            iframeAndImg(elements[i], false);
+                        }
+                    }
+                }
+                id++;
+                if (state[name]) {
+                    document.querySelectorAll('[data-k2-consent-item="' + name + '"]').forEach(function (t) {
+                        t.closest('.cookie_info_text').remove();
+                    })
+                }
+            }
+
+            if (isGTM) {
+                //console.log('existuje GTM');
+                for (name in state) {
+                    if (state[name]) {
+                        stateDataGTM[name] = state[name];
+                    }
+                }
+                data.dataLayerGTM.push(state);
+                data.dataLayerGTM.push({
+                    'event': 'cookieChange'
+                });
+            }
+
+            window['cookiePermission'] = state;
+            createListner(state);
+
+        }
+
+        function setCookie(state) {
+            deleteAllData();
+
+            localStorage.setItem('cookieSet', JSON.stringify(state));
+            console.log('1');
+            console.log(state);
+            console.log('1');
+
+
+            for (name in state) {
+                var elements = document.querySelectorAll('[data-k2-consent="' + name + '"]')
+                for (let i = 0; i < elements.length; i++) {
+                    if (state[name]) {
+                        if ("SCRIPT" == elements[i].nodeName) {
+                            if ("text/plain" == elements[i].type && elements[i]) {
+                                console.log(elements[i]);
+                                createScript(elements[i]);
+                            }
+                        } else if ("IFRAME" == elements[i].nodeName || "IMG" == elements[i].nodeName) {
+                            iframeAndImg(elements[i], true);
+                        }
+
+                        document.querySelectorAll('[data-k2-consent-item="' + name + '"]').forEach(function (t) {
+                            t.closest('.cookie_info_text').remove();
+                        })
+                    } else {
+                        if ("SCRIPT" == elements[i].nodeName) {
+                            var cookieId = elements[i].dataset.cookieId;
+                            var el = document.querySelector('[data-k2-consent="' + name + '/loaded"]');
+                            if (el && el.dataset.cookieId == cookieId) {
+                                el.dataset.k2Consent = name;
+                                elements[i].remove();
+                            }
+                        } else if ("IFRAME" == elements[i].nodeName || "IMG" == elements[i].nodeName) {
+                            iframeAndImg(elements[i], false);
+                        }
+                    }
+                }
+            }
+
+
+
+
+            cookieContent.classList.remove('active');
+            cookieWrap.classList.remove('active_setting');
+
+            if (isGTM) {
+                newState = {};
+
+                for (name in state) {
+                    if (stateDataGTM[name]) {
+                        newState[name] = false;
+                    } else {
+                        newState[name] = state[name];
+                        if (state[name]) {
+                            stateDataGTM[name] = state[name];
+                        }
+                    }
+                }
+                data.dataLayerGTM.push(newState);
+                data.dataLayerGTM.push({
+                    'event': 'cookieChange'
+                });
+            }
+            createListner(state);
+        } 
+
+
+
+        function iframeAndImg(el, allowed) {
+            if (allowed) {
+                if (el.dataset.src) {
+                    el.src = el.dataset.src;
+                    //el.style.display = "";
+                }
+            } else {
+                el.src = "";
+                //el.style.display = "none";
+            }
+        }
+
+        function openPopup(e) {
+            e.preventDefault();
+            cookieWrap.classList.add('active_setting');
+        }
+
+        function closePopup(e) {
+            e.preventDefault();
+            // cookieWrap.classList.remove('active_setting');
+        }
+
+
+        function deleteCookie(name) {
+            document.cookie = name + '=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+        }
+
+        function deleteAllData() {
+            cookieArray = parseCookie(document.cookie);
+            for (let i = 0; i < cookieArray.length; i++) {
+                if (notRemoveCookie.indexOf(cookieArray[i][0]) === -1) {
+                    deleteCookie(cookieArray[i][0]);
+                }
+            }
+            //localStorage.clear();
+        }
+
+        function createScript(t) {
+            console.log(t);
+            var el = document.createElement("script");
+            el.setAttribute('data-k2-consent', t.dataset.k2Consent);
+            t.dataset.src ? el.src = t.dataset.src : t.src && (el.src = t.src);
+            t.getAttribute('onload') !== null ? el.setAttribute('onload', t.getAttribute('onload')) : false;
+            el.dataset.cookieId = t.dataset.cookieId;
+            t.hasAttribute("nonce") && o.setAttribute("nonce", t.getAttribute("nonce"));
+            el.type = "text/javascript";
+            el.innerHTML = t.innerHTML;
+            t.dataset.k2Consent = t.dataset.k2Consent + "/loaded";
+            if (t.nextSibling !== null) {
+                t.parentNode.insertBefore(el, t.nextSibling);
+            } else {
+                t.parentNode.appendChild(el);
+            }
+
+        }
+
+        function createListner(state) {
+            var evt = document.createEvent("Event");
+            evt.initEvent("changeCookieSetting", true, true);
+            evt.cookiePermission = state;
+            document.dispatchEvent(evt);
+            window['cookiePermission'] = state;
+        }
+
+    });
+});
+
+
+
+cookiePermission({
+    dataLayerGTM: typeof (dataLayerGTM) == 'undefined' ? undefined : dataLayerGTM,
+    notRemoveCookie: ["paymentRedirect", "eu-cookies"],
+    oldCookieSelector: document.querySelector('.cookie')
+});
+
+document.addEventListener("changeCookieSetting", function (e) {
+    console.log(e.cookiePermission);
+}, false);

@@ -1,0 +1,296 @@
+doc.onreadystatechange = function () {
+    if (doc.readyState === 'complete') {
+        vocabulary();
+    }
+}
+
+
+function vocabulary() {
+    let items_title = doc.allEl(".dictionary_title");
+    let items_items = doc.allEl(".dictionary_item");
+
+    let dictionary_letters_ul = doc.el(".dictionary_letters ul");
+    let dictionary_letters_li = '';
+
+    let firstLetters = [];
+    let newItem = '';
+
+    for (let i = 0; i < items_title.length; i++) {
+        let letter = items_items[i].getAttribute("data-title").toLowerCase().split('');
+        items_items[i].setAttribute("data-letter", letter[0]);
+        if (firstLetters.indexOf(letter[0]) === -1) {
+            firstLetters.push(letter[0]);
+        }
+    }
+
+    firstLetters.forEach(
+        letter => {
+            dictionary_letters_li += '<li><a href="#' + letter + 'wrap" class="scroll_to">' + letter + '</a></li>';
+            let item = doc.allEl('.dictionary_item[data-letter=\"' + letter + '\"]:not(.no_wrapper)');
+            let items = '';
+            item.forEach(word => items += word.outerHTML);
+            newItem += '<div id=\"' + letter + 'wrap\" class=\"dictionary_header\" data-letter=\"' + letter + '\">' + items + '</div>';
+        }
+    );
+
+    if (dictionary_letters_ul != null && dictionary_letters_li != "") {
+        dictionary_letters_ul.innerHTML = dictionary_letters_li;
+        doc.el(".dictionary_item_wrap").innerHTML = newItem;
+    }
+
+    // kvuli hlavicce
+    window.addEventListener("hashchange", function () {
+        window.scrollTo(window.scrollX, window.scrollY - 25);
+    });
+}
+
+function mapScroll() {
+    var maps = document.querySelectorAll("#map");
+    if (maps) {
+        maps.forEach(function (map) {
+            var cover = map.querySelector(".ctrl_cover");
+            var timer;
+            var clicked = false;
+            map.addEventListener("mousedown", function (e) {
+                clicked = true;
+            });
+            map.addEventListener("mouseup", function (e) {
+                clicked = false;
+            });
+            map.addEventListener("wheel", function (e) {
+                if (e.ctrlKey || clicked) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    clearTimeout(timer);
+                    cover.classList.add("hide");
+                } else {
+                    cover.classList.remove("hide");
+                    console.log("prevent");
+                    clearTimeout(timer);
+                    timer = setTimeout(function () {
+                        cover.classList.add("hide");
+                    }, 2000);
+
+                }
+            });
+            map.addEventListener("touchmove", function (e) {
+                //console.log("touchmove");
+                e.preventDefault();
+            });
+        });
+    }
+}
+
+function initMaps() {
+    contactMap();
+}
+
+/*
+function contactMap() {
+    if (typeof Loader !== 'undefined') {
+        console.log("[1] beziiim");
+        var contactMaps = document.querySelectorAll("#contactmap");
+        if (contactMaps) {
+            contactMaps.forEach(function (contactMap) {
+
+                var stred = SMap.Coords.fromWGS84(14.41, 50.08);
+                var mapa = new SMap(contactMap, stred, 50);
+                mapa.addDefaultLayer(SMap.DEF_BASE).enable();
+                mapa.addDefaultControls();
+
+                var mouseControl = null;
+                var controls = mapa.getControls();
+
+                for (var i = 0; i < controls.length; i++) {
+                    if (controls[i] instanceof SMap.Control.Mouse) mouseControl = controls[i];
+                }
+
+                mouseControl.configure(SMap.MOUSE_PAN | SMap.MOUSE_ZOOM);
+                document.addEventListener("mousedown", function (e) { // CTRL zmáčkl
+                    mouseControl.configure(SMap.MOUSE_PAN | SMap.MOUSE_ZOOM | SMap.MOUSE_WHEEL);
+                });
+                document.addEventListener("mouseup", function (e) { // pustil myš
+                    mouseControl.configure(SMap.MOUSE_PAN | SMap.MOUSE_ZOOM);
+                });
+
+                document.addEventListener("keydown", function (e) {
+                    if (e.ctrlKey) {
+                        mouseControl.configure(SMap.MOUSE_PAN | SMap.MOUSE_ZOOM | SMap.MOUSE_WHEEL);
+                    }
+                });
+                document.addEventListener("keyup", function (e) {
+                    mouseControl.configure(SMap.MOUSE_PAN | SMap.MOUSE_ZOOM);
+                });
+                console.log("[2] beziiim ");
+                var lat = contactMap.getAttribute("data-lat") || 0, lon = contactMap.getAttribute("data-lon") || 0;
+                var znacky = [];
+                var souradnice = [];
+
+                if (lat == 0 || lon == 0) {
+                    var query = contactMap.getAttribute("data-address");
+                    console.log(query);
+
+                    new SMap.Geocoder(query, odpoved);
+
+                    function odpoved(geocoder) { // Odpověď
+                        if (!geocoder.getResults()[0].results.length) {
+                            console.log("Tohle neznáme.");
+                            return;
+                        }
+
+                        var vysledky = geocoder.getResults()[0].results;
+                        console.log(vysledky);
+                        console.log("beziiim");
+                        while (vysledky.length) { // Zobrazit všechny výsledky hledání
+                            var item = vysledky.shift();
+                            var c = item.coords;
+                            var options = {
+                                url: map_marker_img,
+                                title: contactMap.getAttribute("data-address"),
+                                anchor: {left: 10, bottom: 1}  // Ukotvení značky za bod uprostřed dole
+                            }
+                            var znacka = new SMap.Marker(c, null, options);
+
+                            souradnice.push(c);
+                            znacky.push(znacka);
+                            doLayer();
+                        }
+                        console.log("beziiim");
+                    }
+                } else {
+                    console.log("beziiim");
+                    var c = SMap.Coords.fromWGS84(lon, lat);
+                    souradnice.push(c);
+                    var options = {
+                        url: map_marker_img,
+                        title: contactMap.getAttribute("data-title"),
+                        anchor: {left: 10, bottom: 1}  // Ukotvení značky za bod uprostřed dole
+                    }
+                    var znacka = new SMap.Marker(c, null, options);
+                    znacky.push(znacka);
+
+                    doLayer();
+                    console.log("beziiim");
+                }
+
+                function doLayer() {
+                    console.log("beziiim");
+                    var vrstva = new SMap.Layer.Marker();     // Vrstva se značkami
+                    mapa.addLayer(vrstva);                          // Přidat ji do mapy
+                    vrstva.enable();                          // A povolit
+
+                    var i = 0;
+                    for (i = 0; i < znacky.length; i++) {
+                        vrstva.addMarker(znacky[i]);
+                    }
+
+                    var cz = mapa.computeCenterZoom(souradnice); // Spočítat pozici mapy tak, aby značky byly vidět
+                    mapa.setCenterZoom(cz[0], cz[1]);
+                }
+            });
+        }
+
+    }
+}
+*/
+
+function contactMap() {
+    if (typeof Loader !== 'undefined') {
+        var contactMaps = document.querySelectorAll("#contactmap");
+        if (contactMaps) {
+            contactMaps.forEach(function (contactMap) {
+
+                var stred = SMap.Coords.fromWGS84(14.41, 50.08);
+                var mapa = new SMap(contactMap, stred, 50);
+                mapa.addDefaultLayer(SMap.DEF_BASE).enable();
+                mapa.addDefaultControls();
+
+                var mouseControl = null;
+                var controls = mapa.getControls();
+
+                for (var i = 0; i < controls.length; i++) {
+                    if (controls[i] instanceof SMap.Control.Mouse) mouseControl = controls[i];
+                }
+
+                mouseControl.configure(SMap.MOUSE_PAN | SMap.MOUSE_ZOOM);
+
+                document.addEventListener("mousedown", function (e) { // CTRL zmáčkl
+                    mouseControl.configure(SMap.MOUSE_PAN | SMap.MOUSE_ZOOM | SMap.MOUSE_WHEEL);
+                });
+                document.addEventListener("mouseup", function (e) { // pustil myš
+                    mouseControl.configure(SMap.MOUSE_PAN | SMap.MOUSE_ZOOM);
+                });
+
+                document.addEventListener("keydown", function (e) {
+                    if (e.ctrlKey) {
+                        mouseControl.configure(SMap.MOUSE_PAN | SMap.MOUSE_ZOOM | SMap.MOUSE_WHEEL);
+                    }
+                });
+                document.addEventListener("keyup", function (e) {
+                    mouseControl.configure(SMap.MOUSE_PAN | SMap.MOUSE_ZOOM);
+                });
+
+                var lat = contactMap.getAttribute("data-lat") || 0, lon = contactMap.getAttribute("data-lon") || 0;
+                var znacky = [];
+                var souradnice = [];
+
+                if (lat == 0 || lon == 0) {
+                    var query = contactMap.getAttribute("data-address");
+                    new SMap.Geocoder(query, odpoved);
+
+                    function odpoved(geocoder) { /* Odpověď */
+                        console.log(geocoder.getResults());
+                        if (!geocoder.getResults()[0].results.length) {
+                            console.log("Tohle neznáme.");
+                            return;
+                        }
+
+                        var vysledky = geocoder.getResults()[0].results;
+
+                        while (vysledky.length) { /* Zobrazit všechny výsledky hledání */
+                            var item = vysledky.shift();
+                            var c = item.coords;
+                            var options = {
+                                url: map_marker_img,
+                                title: contactMap.getAttribute("data-address"),
+                                anchor: {left: 10, bottom: 1}  /* Ukotvení značky za bod uprostřed dole */
+                            }
+                            var znacka = new SMap.Marker(c, null, options);
+
+                            souradnice.push(c);
+                            znacky.push(znacka);
+                            doLayer();
+                        }
+                    }
+                } else {
+                    var c = SMap.Coords.fromWGS84(lon, lat);
+                    souradnice.push(c);
+                    var options = {
+                        url: map_marker_img,
+                        title: contactMap.getAttribute("data-title"),
+                        anchor: {left: 10, bottom: 1}  /* Ukotvení značky za bod uprostřed dole */
+                    }
+                    var znacka = new SMap.Marker(c, null, options);
+                    znacky.push(znacka);
+
+                    doLayer();
+                }
+
+                function doLayer() {
+                    var vrstva = new SMap.Layer.Marker();     /* Vrstva se značkami */
+                    mapa.addLayer(vrstva);                          /* Přidat ji do mapy */
+                    vrstva.enable();                         /* A povolit */
+
+                    var i = 0;
+                    for (i = 0; i < znacky.length; i++) {
+                        vrstva.addMarker(znacky[i]);
+                    }
+
+                    var cz = mapa.computeCenterZoom(souradnice); /* Spočítat pozici mapy tak, aby značky byly vidět */
+                    mapa.setCenterZoom(cz[0], cz[1]);
+                }
+            });
+        }
+
+    }
+}

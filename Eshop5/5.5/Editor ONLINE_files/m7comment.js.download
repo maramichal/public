@@ -1,0 +1,103 @@
+window.k2m7 = (function () {
+  var post = x(currentExecutingScript());
+  var inAction = false;
+
+  $(document).on('click', '.k2tx7createCommentForm .k2btnSendComment', function (e) {
+    e.preventDefault();
+    k2m1.captcha($(this), k2m7.createComment);
+    //createComment($(this));
+  });
+
+  function createComment(btn) {
+    var _modul = 'k2tx7createCommentForm';
+    var _action = 'save';
+    var fce = btn.closest('.' + _modul);
+    var ID = btn.attr('data-k2-id');
+    if (fce.length) {
+      var check = checkInputs(fce, 0);
+      var isValid = check.isValid;
+      if (check.msg.length) {
+        $(document).trigger('k2trigger', [{ modul: _modul, state: '', action: _action, fail: true, msg: check.msg }]);
+      }
+      if (!inAction && isValid) {
+        var inputs = getInputs(fce);
+        console.log(inputs);
+        inputs = JSON.stringify(inputs);
+        inAction = true;
+        $(document).trigger('k2trigger', [{ modul: _modul, state: 'start', action: _action }]);
+        $.post(post, {
+          l: 1,
+          ID: ID,
+          inputs: inputs
+        }, function (data) {
+          var d = tryParseJSON(data);
+          if (typeof d === 'object') {
+            if (!d.fail) {
+              k2msg = '.k2msg1';
+              fce.find(k2msg).show();
+              $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: false, msg: [k2msg] }]);
+              fce.find('.k2text').val('');
+              fce.find('.k2caption').val('');
+            } else {
+              console.log('failed');
+              console.log(d);
+              $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: true, msg: [] }]);
+            }
+          } else {
+            $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: true, msg: [] }]);
+          }
+          inAction = false;
+        });
+      }
+    }
+  }
+
+  $(document).on('click', '.k2tx7commentList .k2btnNextComments', function (e) {
+    e.preventDefault();
+    nextComments($(this));
+  });
+
+  function nextComments(btn) {
+    //console.log('next comment');
+    var _modul = 'k2tx7commentList';
+    var _action = 'reload';
+    var fce = $('.' + _modul);
+    var crc = fce.attr('data-k2-crc');
+    var ID = btn.attr('data-k2-id');
+    var Page = btn.attr('data-k2-page');
+    console.log("ID: " + ID + " CRC: " + crc);
+    if (fce.length && crc) {
+      $(document).trigger('k2trigger', [{ modul: _modul, state: 'start', action: _action }]);
+      $.post(post, {
+        l: 2,
+        ID: ID,
+        crc: crc,
+        page: parseInt(Page) // We want the next page
+      }, function (data) {
+        console.log(data);
+        var d = tryParseJSON(data);
+        if (typeof d === 'object') {
+          if (!d.isEnd) { // Speaks for itself
+            fce.find('.k2btnNextComments').attr('data-k2-page', parseInt(Page) + 1);
+          } else {
+            fce.find('.k2btnNextComments').hide();
+          }
+          if (d.html) {
+            fce.find('[data-k2="container"]').append(d.html);
+          }
+          fce = $('.' + _modul);
+          $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: false, itemID: d.itemID, msg: [], html: d.html, action: d.action }]);
+          /*if (d.pre) {
+              var _modulPre = 'k2tx7commentListPre';
+              $(document).trigger('k2trigger', [{ modul: _modulPre, state: 'end', action: _action, fail: false, msg: [], htmlPre: d.htmlPre, action: d.action }]);
+          }*/
+        } else {
+          $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: true, msg: [] }]);
+        }
+      });
+    }
+  }
+  return {
+    createComment: createComment
+  };
+})();

@@ -1,0 +1,203 @@
+//Dokumentace:
+//https://github.com/orestbida/cookieconsent/tree/v2.8
+var cc = undefined;
+window.addEventListener('load', function () {
+  // obtain plugin
+  cc = initCookieConsent();
+
+  // run plugin with your configuration
+  cc.run({
+    current_lang: 'cs',
+    autoclear_cookies: true, // default: false
+    //page_scripts: true, // default: false
+    // mode: 'opt-in'                          // default: 'opt-in'; value: 'opt-in' or 'opt-out'
+    // delay: 0,                               // default: 0
+    // auto_language: '',                      // default: null; could also be 'browser' or 'document'
+    // autorun: true,                          // default: true
+    force_consent: true, // default: false
+    // hide_from_bots: false,                  // default: false
+    // remove_cookie_tables: false             // default: false
+    // cookie_name: 'cc_cookie',               // default: 'cc_cookie'
+    // cookie_expiration: 182,                 // default: 182 (days)
+    // cookie_necessary_only_expiration: 182   // default: disabled
+    // cookie_domain: location.hostname,       // default: current domain
+    // cookie_path: '/',                       // default: root
+    // cookie_same_site: 'Lax',                // default: 'Lax'
+    // use_rfc_cookie: false,                  // default: false
+    // revision: 0,                            // default: 0
+    gui_options: {
+      consent_modal: {
+        layout: 'cloud', // box/cloud/bar
+        position: 'bottom center', // bottom/middle/top + left/right/center
+        transition: 'slide', // zoom/slide
+        swap_buttons: false, // enable to invert buttons
+      },
+      settings_modal: {
+        layout: 'bar', // box/bar
+        // position: 'left',           // left/right
+        transition: 'slide', // zoom/slide
+      },
+    },
+
+    onAccept: function (cookie) {
+      let storages = {};
+
+      if (cookie.level.includes('targeting')) {
+        storages.ad_storage = 'granted';
+      }
+      if (cookie.level.includes('analytics')) {
+        storages.analytics_storage = 'granted';
+      }
+
+      gtag('consent', 'update', storages);
+      dataLayer.push({
+        event: 'consent_state_update',
+      });
+    },
+
+    languages: {
+      cs: {
+        consent_modal: {
+          title: 'Používáme cookies',
+          description:
+            'Tento web používá soubory cookies. Používáním tohoto webu souhlasíte s ukládáním a používáním nezbytných souborů cookies. Zakliknutím pole "Přijmout vše" udělujete souhlas k ukládání a používání i dalších souborů cookies jako jsou analytické, preferenční, marketingové apod.',
+          primary_btn: {
+            text: 'Přijmout vše',
+            role: 'accept_all', // 'accept_selected' or 'accept_all'
+          },
+          secondary_btn: {
+            text: 'Nastavení',
+            role: 'settings', // 'settings' or 'accept_necessary'
+          },
+        },
+        settings_modal: {
+          title: 'Cookies nastavení',
+          save_settings_btn: 'Uložit nastavení',
+          accept_all_btn: 'Přijmout vše',
+          reject_all_btn: 'Odmítnout vše',
+          close_btn_label: 'Zavřít',
+          cookie_table_headers: [
+            {
+              col1: 'Jméno',
+            },
+            {
+              col2: 'Doména',
+            },
+            {
+              col3: 'Expirace',
+            },
+            {
+              col4: 'Popis',
+            },
+          ],
+          blocks: [
+            {
+              title: 'Využití cookies',
+              description:
+                'Soubory cookie používáme k zajištění základních funkcí webu a ke zlepšení vašeho online zážitku. Pro každou kategorii si můžete vybrat, zda se chcete přihlásit/odhlásit, kdykoli budete chtít. Více informací o cookies <a class="cc-link" target="_blank" href="https://www.alphega.cz/cookie">naleznete zde</a>.',
+            },
+            {
+              title: 'Funkční/nezbytné cookies',
+              description:
+                'Tyto soubory cookie jsou nezbytné pro správné fungování webových stránek. Bez těchto cookies by web nefungoval správně. Nelze je tedy deaktivovat.',
+              toggle: {
+                value: 'necessary',
+                enabled: true,
+                readonly: true, // cookie categories with readonly=true are all treated as "necessary cookies"
+              },
+              cookie_table: [
+                // list of all expected cookies
+                {
+                  col1: 'PHPSESSID,',
+                  col2: '.alphega.cz',
+                  col3: 'Relace',
+                  col4: 'Soubor cookie PHPSESSID je nativní pro PHP a umožňuje webům ukládat serializovaná data o stavu. Na webu se používá k navázání uživatelské relace a k předávání údajů o stavu prostřednictvím dočasného souboru cookie, který se běžně označuje jako soubor cookie relace. Protože soubor cookie PHPSESSID nemá časově omezenou platnost, zmizí po zavření prohlížeče.',
+                },
+                {
+                  col1: 'paymentRedirect',
+                  col2: '.alphega.cz',
+                  col3: 'Relace',
+                  col4: 'Udržení relace uživatele při přesměrování z platby.',
+                },
+                {
+                  col1: 'cc_cookie',
+                  col2: '.alphega.cz',
+                  col3: 'Půl roku',
+                  col4: 'Uložení informací o cookie preferencích uživatele.',
+                },
+              ],
+            },
+            {
+              title: 'Analytické a preferenční cookies',
+              description:
+                'Analytické cookies nám umožňují sledovat návštěvy našich webových stránek a také to, kolik uživatelů kliklo na odkaz na našem webu či využilo některou z jeho funkcí. Typicky jde o statistiky návštěvnosti jako Google Analytics. Preferenční cookies zase umožňují, aby si náš web zapamatoval preference daného uživatele a mohl se mu přizpůsobit. Zajistí se tak pohodlné používání webu, který si pamatuje nastavení jazyka, měny a dalších preferencí uživatele.',
+              toggle: {
+                value: 'analytics', // your cookie category
+                enabled: false,
+                readonly: false,
+              },
+              cookie_table: [
+                // list of all expected cookies
+                {
+                  col1: '^_ga', // match all cookies starting with "_ga"
+                  col2: '.alphega.cz',
+                  col3: '2 roky',
+                  is_regex: true,
+                  col4: 'Tento název souboru cookie je spojen s Google Universal Analytics. Tento soubor cookie se používá k rozlišení jedinečných uživatelů přiřazením náhodně vygenerovaného čísla jako identifikátoru klienta. Je součástí každé žádosti o stránku na webu a používá se k výpočtu údajů o návštěvnících, relacích a kampaních pro analytické přehledy stránek.',
+                },
+                {
+                  col1: '_gid',
+                  col2: '.alphega.cz',
+                  col3: '1 den',
+                  col4: 'Tento soubor cookie je nastaven službou Google Analytics. Ukládá a aktualizuje jedinečnou hodnotu pro každou navštívenou stránku a používá se k počítání a sledování zobrazení stránek.',
+                },
+              ],
+            },
+            {
+              title: 'Marketingové cookies',
+              description:
+                'Marketingové cookies se využívají k lepšímu cílení reklam (například remarketing, tedy zpětné oslovení uživatele, který už na našem webu byl, na jiném kanálu prostřednictvím placené reklamy) a k jejich personalizaci. Na základě těchto informací není zpravidla možná bezprostřední identifikace Vaší osoby, protože jsou používány pouze pseudonymizované údaje. Pokud nevyjádříte souhlas, nebudete příjemcem obsahů a reklam přizpůsobených Vašim zájmům.',
+              toggle: {
+                value: 'targeting',
+                enabled: false,
+                readonly: false,
+              },
+              cookie_table: [
+                // list of all expected cookies
+                {
+                  col1: 'IDE',
+                  col2: '.doubleclick.net',
+                  col3: '2 roky',
+                  col4: 'Používá ho Google DoubleClick k registraci a hlášení akcí uživatele webových stránek po zobrazení nebo kliknutí na některou z reklam inzerenta za účelem měření účinnosti reklamy a prezentace cílených reklam uživateli.',
+                },
+                {
+                  col1: 'test_cookie',
+                  col2: '.doubleclick.net',
+                  col3: '15 minut',
+                  col4: 'Slouží ke kontrole, zda prohlížeč uživatele podporuje soubory cookie.',
+                },
+                {
+                  col1: 'sid',
+                  col2: '.seznam.cz',
+                  col3: '1 měsíc',
+                  col4: 'Zachované stavy uživatelů napříč požadavky na stránky.',
+                },
+                {
+                  col1: '_gcl_au',
+                  col2: '.alphega.cz',
+                  col3: '3 měsíce',
+                  col4: 'Používá Google AdSense k experimentování s efektivitou reklamy na webech využívajících jejich služby.',
+                },
+              ],
+            },
+            {
+              title: 'Více informací',
+              description:
+                'Máte-li jakékoli dotazy týkající se našich zásad týkajících se souborů cookie a vašich voleb, <a class="cc-link" target="_blank" href="https://www.alphega.cz/kontakty">kontaktujte nás</a>.',
+            },
+          ],
+        },
+      },
+    },
+  });
+});

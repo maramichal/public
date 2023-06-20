@@ -1,0 +1,1227 @@
+window.k2m2 = (function () {
+  var post = x(currentExecutingScript());
+  var inAction = false;
+  var documentUploadFileList = { person: [], customer: [] };
+  //----------------------------------------------------------------------------
+  $(document).on('click', '.k2fx2formRegister .k2btnAres', function (e) {
+    e.preventDefault();
+    tryAres($(this), 0, 'k2fx2formRegister');
+  });
+  //----------------------------------------------------------------------------
+  $(document).on('click', '.k2tx2registrationControl .k2btnAres', function (e) {
+    e.preventDefault();
+    tryAres($(this), 0, 'k2tx2registrationControl');
+  });
+  //----------------------------------------------------------------------------
+  $(document).on('click', '.k2fx2addressDetail .k2btnAres', function (e) {
+    e.preventDefault();
+    tryAres($(this), 1, 'k2fx2addressDetail');
+  });
+  //----------------------------------------------------------------------------
+  function tryAres(btn, v, _modul) {
+    //var _modul = v ? "k2fx2addressDetail" : "k2fx2formRegister";
+    var _action = 'load';
+    var fce = btn.closest('.k2fx');
+    fce.find('.k2msg').hide();
+    fce.find('.k2fail').removeClass(failClass);
+    var k2inS = v ? ".k2IN" : ".k2invIn";
+    var k2invIn = fce.find(k2inS);
+    var invIn = k2invIn.val();
+    if (!invIn || !isValidInNumber(invIn)) {
+      k2invIn.addClass(failClass);
+      k2msg = '.k2msg11';
+      fce.find(k2msg).show();
+      $(document).trigger('k2trigger', [{ modul: _modul, post: '', action: _action, fail: true, msg: [k2msg] }]);
+    } else {
+      if (!inAction) {
+        inAction = true;
+        $(document).trigger('k2trigger', [{ modul: _modul, post: 'start', action: _action }]);
+        $.post(post, {
+          l: 3,
+          invIn: invIn
+        }, function (data) {
+          //console.log('DATA = ' + data);
+          var d = tryParseJSON(data);
+          if (typeof d === 'object' && d.hasOwnProperty('invZip')) {
+            //console.log(d);
+            if (v) {
+              fce.find('.k2TAX').val(d.invTax);
+              fce.find('.k2name').val(d.invName);
+              fce.find('.k2street').val(d.invStreet);
+              fce.find('.k2city').val(d.invCity);
+              fce.find('.k2ZIP').val(d.invZip);
+              fce.find('.k2country').val(d.invCountry);
+            } else {
+              fce.find('.k2invIntax').val('');
+              fce.find('.k2invTax').val(d.invTax);
+              fce.find('.k2invName').val(d.invName);
+              fce.find('.k2invStreet').val(d.invStreet);
+              fce.find('.k2invCity').val(d.invCity);
+              fce.find('.k2invZip').val(d.invZip);
+              fce.find('.k2invCountry').val(d.invCountry);
+            }
+            $(document).trigger('k2trigger', [{ modul: _modul, post: 'end', action: _action, fail: false, msg: [] }]);
+          } else if (typeof d === 'object' && d.hasOwnProperty('drop')) {
+            $(document).trigger('k2trigger', [{ modul: _modul, post: 'end', action: _action, fail: true, msg: [] }]); //nic,dropped
+          } else {
+            k2msg = '.k2msg12';
+            fce.find(k2msg).show();
+            $(document).trigger('k2trigger', [{ modul: _modul, post: 'end', action: _action, fail: true, msg: [k2msg] }]);
+          }
+          inAction = false;
+        }); //endpost
+      }
+    }
+  }
+  //----------------------------------------------------------------------------
+  var registerRefresh = 0;
+  $(document).on('click', '.k2fx2formRegister .k2btnRegister', function (e) {
+    e.preventDefault();
+    registerRefresh = 0;
+    k2m1.captcha($(this), k2m2.tryRegister);
+    //tryRegister($(this));
+  });
+  //----------------------------------------------------------------------------
+  $(document).on('click', '.k2fx2registrationControl .k2btnRegister', function (e) {
+    e.preventDefault();
+    registerRefresh = 1;
+    k2m1.captcha($(this), k2m2.tryRegister);
+    //tryRegister($(this));
+  });
+  //----------------------------------------------------------------------------
+  function tryRegister(btn) {
+    var _modul = 'k2fx2formRegister';
+    var _action = 'save';
+    var fail = false;
+    var failMsg = []; //standard
+    var failMsg2 = []; //nonstandard
+    var failMsg3 = []; //webdata
+    var k2fx = btn.closest('.k2fx');
+    k2fx.find('.k2msg').hide();
+    k2fx.find('.k2fail').removeClass(failClass);
+    var e = {};
+    //inp
+    var k2usr = k2fx.find('.k2usr');
+    e.usr = k2usr.val();
+    var k2pwd1 = k2fx.find('.k2pwd1');
+    e.pwd1 = k2pwd1.val();
+    var k2pwd2 = k2fx.find('.k2pwd2');
+    e.pwd2 = k2pwd2.val();
+    var k2cont = k2fx.find('.k2cont');
+    e.cont = k2cont.val();
+    var k2name = k2fx.find('.k2name');
+    e.name = k2name.val();
+    var k2surname = k2fx.find('.k2surname');
+    e.surname = k2surname.val();
+    var k2tel = k2fx.find('.k2tel');
+    e.tel = k2tel.val();
+    var invAddr = k2fx.find('[data-k2="invoiceAddress"]');
+    if (invAddr.length) {
+      var k2invIn = k2fx.find('.k2invIn');
+      e.invIn = k2invIn.val();
+      var k2invIntax = k2fx.find('.k2invIntax');
+      e.invIntax = k2invIntax.val();
+      var k2invTax = k2fx.find('.k2invTax');
+      e.invTax = k2invTax.val();
+      var k2invName = k2fx.find('.k2invName');
+      e.invName = k2invName.val();
+      var k2invStreet = k2fx.find('.k2invStreet');
+      e.invStreet = k2invStreet.val();
+      var k2invCity = k2fx.find('.k2invCity');
+      e.invCity = k2invCity.val();
+      var k2invZip = k2fx.find('.k2invZip');
+      e.invZip = k2invZip.val();
+      var k2invCountry = k2fx.find('.k2invCountry');
+      e.invCountry = k2invCountry.val();
+    }
+    var k2news = k2fx.find('.k2news');
+    e.news = k2news.prop('checked');
+    var k2vop = k2fx.find('.k2vop');
+    e.vop = k2vop.prop('checked');
+    var k2pd = k2fx.find('.k2pd');
+    e.pd = k2pd.prop('checked');
+    //console.log(e);
+    //--------------------------------------------------------------------------
+    if (!e.usr || !isValidEmail(e.usr)) {
+      fail = true;
+      k2usr.addClass(failClass);
+      k2fx.find('.k2msg2').show();
+      failMsg.push('.k2msg2');
+    }
+    //--------------------------------------------------------------------------
+    if (!e.pwd1) {
+      fail = true;
+      k2pwd1.addClass(failClass);
+      k2fx.find('.k2msg7').show();
+      failMsg.push('.k2msg7');
+    } else if (e.pwd1.length < 6) {
+      fail = true;
+      k2pwd1.addClass(failClass);
+      k2fx.find('.k2msg8').show();
+      failMsg.push('.k2msg8');
+    } else if (e.pwd1 != e.pwd2) {
+      fail = true;
+      k2pwd1.addClass(failClass);
+      k2pwd2.addClass(failClass);
+      k2fx.find('.k2msg9').show();
+      failMsg.push('.k2msg9');
+    }
+    //--------------------------------------------------------------------------
+    if (e.cont && !isValidEmail(e.cont)) {
+      fail = true;
+      k2cont.addClass(failClass);
+      k2fx.find('.k2msg6').show();
+      failMsg.push('.k2msg6');
+    }
+    //--------------------------------------------------------------------------
+    if (!e.name) {
+      fail = true;
+      k2name.addClass(failClass);
+      k2fx.find('.k2msg3').show();
+      failMsg.push('.k2msg3');
+    }
+    //--------------------------------------------------------------------------
+    if (!e.surname) {
+      fail = true;
+      k2surname.addClass(failClass);
+      k2fx.find('.k2msg4').show();
+      failMsg.push('.k2msg4');
+    }
+    //--------------------------------------------------------------------------
+    if ((isInputReq(k2tel) && !e.tel) || (e.tel && !isValidSkip(k2tel) && !isValidPhoneNumber(e.tel))) {
+      fail = true;
+      k2tel.addClass(failClass);
+      k2fx.find('.k2msg5').show();
+      failMsg.push('.k2msg5');
+    }
+    //--------------------------------------------------------------------------
+    if (invAddr.length) { //moznost zadat fak.adresu
+      //------------------------------------------------------------------------
+      if ((isInputReq(k2invIn) && !e.invIn) || (e.invIn && !isValidSkip(k2invIn) && !isValidInNumber(e.invIn))) {
+        fail = true;
+        k2invIn.addClass(failClass);
+        k2fx.find('.k2msg11').show();
+        failMsg.push('.k2msg11');
+      }
+      //------------------------------------------------------------------------
+      if ((isInputReq(k2invIntax) && !e.invIntax) || (e.invIntax && !isValidSkip(k2invIntax) && !isValidTaxNumber(e.invIntax))) {
+        fail = true;
+        k2invIntax.addClass(failClass);
+        k2fx.find('.k2msg23').show();
+        failMsg.push('.k2msg23');
+      }
+      //------------------------------------------------------------------------
+      if ((isInputReq(k2invTax) && !e.invTax) || (e.invTax && !isValidSkip(k2invTax) && !isValidTaxNumber(e.invTax))) {
+        fail = true;
+        k2invTax.addClass(failClass);
+        k2fx.find('.k2msg22').show();
+        failMsg.push('.k2msg22');
+      }
+      //------------------------------------------------------------------------
+      if (isInputReq(k2invName) && !e.invName) {
+        fail = true;
+        k2invName.addClass(failClass);
+        k2fx.find('.k2msg24').show();
+        failMsg.push('.k2msg24');
+      }
+      //------------------------------------------------------------------------
+      if ((isInputReq(k2invStreet) && !e.invStreet) || (e.invStreet && !isValidSkip(k2invStreet) && !isValidStreet(e.invStreet))) {
+        fail = true;
+        k2invStreet.addClass(failClass);
+        k2fx.find('.k2msg13').show();
+        failMsg.push('.k2msg13');
+      }
+      //------------------------------------------------------------------------
+      if (isInputReq(k2invCity) && !e.invCity) {
+        fail = true;
+        k2invCity.addClass(failClass);
+        k2fx.find('.k2msg14').show();
+        failMsg.push('.k2msg14');
+      }
+      //------------------------------------------------------------------------
+      if ((isInputReq(k2invZip) && !e.invZip) || (e.invZip && !isValidSkip(k2invZip) && !isValidZip(e.invZip))) {
+        fail = true;
+        k2invZip.addClass(failClass);
+        k2fx.find('.k2msg15').show();
+        failMsg.push('.k2msg15');
+      }
+      //------------------------------------------------------------------------
+    }
+    invAddr.length
+    //--------------------------------------------------------------------------
+    if (k2vop.length && !e.vop) {
+      fail = true;
+      k2vop.addClass(failClass);
+      k2fx.find('.k2msg17').show();
+      failMsg.push('.k2msg17');
+    }
+    //--------------------------------------------------------------------------
+    if (k2pd.length && !e.pd) {
+      fail = true;
+      k2pd.addClass(failClass);
+      k2fx.find('.k2msg18').show();
+      failMsg.push('.k2msg18');
+    }
+    //v registraci je dorucovaci adresa
+    var deliveryInputs = null;
+    var fail2 = false; //chyby nestandarniho formu
+    var delivery = k2fx.find('[data-k2-type="delivery"]');
+    if (delivery.length) {
+      var copy = copyDeliveryReg(delivery);
+      var isSame = copy.isSame;
+      //console.log(copy);
+      var check = checkInputs(delivery, 0);
+      if (!check.isValid) {
+        fail2 = true;
+      }
+      if (check.msg.length) {
+        failMsg2 = check.msg;
+      }
+      var deliveryInputs = getInputs(delivery);
+      //console.log(deliveryInputs);
+    }
+    //webData
+    var webDataInputs = null;
+    var fail3 = false;
+    var wd = checkInputs(k2fx, 0, 1);
+    if (wd.isValid) {
+      webDataInputs = getInputs(k2fx, 0, 1);
+      //console.log(webDataInputs);
+    } else {
+      fail3 = true;
+      if (wd.msg.length) {
+        failMsg3 = wd.msg;
+        failMsg.push.apply(failMsg, failMsg3); //spojit pole msgs
+      }
+    }
+    //
+    if (fail || fail2 || fail3) {
+      fail = true;
+      failMsg.push.apply(failMsg, failMsg2); //spojit pole msgs
+      console.log('fail=' + fail + ' fail2=' + fail2 + ' fail3=' + fail3);
+      console.log(failMsg);
+      $(document).trigger('k2trigger', [{ modul: _modul, post: '', action: _action, fail: true, msg: failMsg }]);
+    }
+    //
+    //--------------------------------------------------------------------------
+    if (!fail && !inAction) {
+      inAction = true;
+      $(document).trigger('k2trigger', [{ modul: _modul, post: 'start', action: _action }]);
+      $.post(post, {
+        l: 2,
+        e: JSON.stringify(e),
+        d: JSON.stringify(deliveryInputs),
+        wd: JSON.stringify(webDataInputs),
+        isSame: isSame
+      }, function (data) {
+        //console.log('DATA = ' + data);
+        var d = tryParseJSON(data);
+        if (typeof d === 'object') {
+          if (d.state == '1') {
+            var msgToShow = '.k2msg19,.k2msg20,.k2msg21,.k2msg0,.k2msg0a1,.k2msg0a2,.k2msg0a1a2';
+            if (registerRefresh == 1) {
+              registrationControlRefresh(msgToShow);
+            } else {
+              k2fx.find(msgToShow).show();
+              k2fx.find('.k2form').remove();
+            }
+            $(document).trigger('k2trigger', [{ modul: _modul, post: 'end', action: _action, fail: false, msg: ['.k2msg19', '.k2msg20', '.k2msg21'], data: btn.attr('data-k2-msg') }]);
+          } else if (d.state == '2') {
+            k2fx.find('.k2msg10').show();
+            $(document).trigger('k2trigger', [{ modul: _modul, post: 'end', action: _action, fail: true, msg: ['.k2msg10'] }]);
+          } else {
+            console.log(d);
+            k2fx.find('.k2msg25').show();
+            $(document).trigger('k2trigger', [{ modul: _modul, post: 'end', action: _action, fail: true, msg: ['.k2msg25'] }]);
+          }
+        } else {
+          console.log('DATA = ' + data);
+        }
+        inAction = false;
+      }); //endpost
+    }
+  }
+  //zkopiruj fak to dor
+  function copyDeliveryReg(fce) {
+    var out = [];
+    out.isSame = 0;
+    if (fce.length == 1) {
+      //same as delivery
+      var isSame = $('.k2fx2formRegister .k2invAsDel').is(":checked");
+      console.log('checked checkbox=' + isSame);
+      if (isSame) { //zkopiruj
+        out.isSame = 1;
+        var fce2 = $('.k2fx2formRegister [data-k2="invoiceAddress"]');
+        fce.find('.k2delName').val(fce2.find('.k2invName').val());
+        fce.find('.k2delStreet').val(fce2.find('.k2invStreet').val());
+        fce.find('.k2delCity').val(fce2.find('.k2invCity').val());
+        fce.find('.k2delZIP').val(fce2.find('.k2invZip').val());
+        fce.find('.k2delCountry').val(fce2.find('.k2invCountry').val());
+      }
+      //var inputs = getInputs(fce);
+      //console.log(inputs);
+      //out.inputs = JSON.stringify(inputs);
+    }
+    return out;
+  }
+
+  //----------------------------------------------------------------------------
+  $(document).on('click', '.k2fx2formPassword .k2btnReset', function (e) {
+    e.preventDefault();
+    k2m1.captcha($(this), k2m2.resetPassword);
+    //resetPassword($(this));
+  });
+  //----------------------------------------------------------------------------
+  function resetPassword(btn) {
+    var fail = false;
+    var k2fx = btn.closest('.k2fx');
+    var usr = k2fx.find('.k2usr').val();
+    var validEmail = isValidEmail(usr);
+    k2fx.find('.k2msg').hide();
+    k2fx.find('.k2fail').removeClass(failClass);
+    //
+    var _modul = 'k2fx2formPassword';
+    var _action = 'load';
+    if (!usr || !validEmail) {
+      fail = true;
+      k2fx.find('.k2fail').addClass(failClass);
+      k2fx.find('.k2msg1').show();
+      $(document).trigger('k2trigger', [{ modul: _modul, post: '', action: _action, fail: true, msg: ['.k2msg1'] }]);
+    }
+    //
+    if (!fail && !inAction) {
+      inAction = true;
+      $(document).trigger('k2trigger', [{ modul: _modul, post: 'start', action: _action }]);
+      $.post(post, {
+        l: 8,
+        usr: usr
+      }, function (data) {
+        console.log('DATA = ' + data);
+        if (data == '1') {
+          k2fx.find('.k2msg2').show();
+          $(document).trigger('k2trigger', [{ modul: _modul, post: 'end', action: _action, fail: false, msg: ['.k2msg2'] }]);
+        } else {
+          k2fx.find('.k2msg3').show();
+          $(document).trigger('k2trigger', [{ modul: _modul, post: 'end', action: _action, fail: true, msg: ['.k2msg1'] }]);
+        }
+        inAction = false;
+      }); //endpost
+    }
+    //--------------------------------------------------------------------------
+  }
+  //----------------------------------------------------------------------------
+  $(document).on('click', '.k2fx2formPasswordNew .k2btnReset', function (e) {
+    e.preventDefault();
+    resetPasswordNew($(this));
+  });
+  //----------------------------------------------------------------------------
+  function resetPasswordNew(btn) {
+    var _modul = 'k2fx2formPasswordNew';
+    var _action = 'load';
+    var fail = false;
+    var k2fx = btn.closest('.k2fx');
+    k2fx.find('.k2msg').hide();
+    k2fx.find('.k2fail').removeClass(failClass);
+    var guid = btn.attr('data-k2-guid');
+    var usr = k2fx.find('.k2usr').val();
+    var validEmail = isValidEmail(usr);
+    if (!usr || !validEmail) {
+      fail = true;
+      k2fx.find('.k2fail').addClass(failClass);
+      k2fx.find('.k2msg1').show();
+      $(document).trigger('k2trigger', [{ modul: _modul, post: '', action: _action, fail: true, msg: ['.k2msg1'] }]);
+    }
+    //
+    var k2pwd1 = k2fx.find('.k2pwd1');
+    var k2pwd2 = k2fx.find('.k2pwd2');
+    var pwd1 = k2pwd1.val();
+    var pwd2 = k2pwd2.val();
+    //
+    if (!pwd1) {
+      fail = true;
+      k2pwd1.addClass(failClass);
+      k2fx.find('.k2msg7').show();
+      $(document).trigger('k2trigger', [{ modul: _modul, post: '', action: _action, fail: true, msg: ['.k2msg7'] }]);
+    } else if (pwd1.length < 6) {
+      fail = true;
+      k2pwd1.addClass(failClass);
+      k2fx.find('.k2msg8').show();
+      $(document).trigger('k2trigger', [{ modul: _modul, post: '', action: _action, fail: true, msg: ['.k2msg8'] }]);
+    } else if (pwd1 != pwd2) {
+      fail = true;
+      k2pwd1.addClass(failClass);
+      k2pwd2.addClass(failClass);
+      k2fx.find('.k2msg9').show();
+      $(document).trigger('k2trigger', [{ modul: _modul, post: '', action: _action, fail: true, msg: ['.k2msg9'] }]);
+    }
+    //
+    if (!fail && !inAction) {
+      inAction = true;
+      $(document).trigger('k2trigger', [{ modul: _modul, post: 'start', action: _action }]);
+      $.post(post, {
+        l: 9,
+        guid: guid,
+        pwd1: pwd1,
+        pwd2: pwd2,
+        usr: usr
+      }, function (data) {
+        console.log('DATA = ' + data);
+        if (data == '1') {
+          k2fx.find('.k2msg2').show();
+          $(document).trigger('k2trigger', [{ modul: _modul, post: 'end', action: _action, fail: false, msg: ['.k2msg2'] }]);
+        } else if (data == '3') {
+          k2fx.find('.k2msg33').show();
+          $(document).trigger('k2trigger', [{ modul: _modul, post: 'end', action: _action, fail: true, msg: ['.k2msg33'] }]);
+        } else {
+          k2fx.find('.k2msg3').show();
+          $(document).trigger('k2trigger', [{ modul: _modul, post: 'end', action: _action, fail: true, msg: ['.k2msg3'] }]);
+        }
+        inAction = false;
+      }); //endpost
+    }
+    //--------------------------------------------------------------------------
+  }
+  //----------------------------------------------------------------------------
+  $(document).on('click', '.k2fx2formLogin .k2btnLogin', function (e) {
+    e.preventDefault();
+    tryLogin($(this));
+  });
+  //----------------------------------------------------------------------------
+  function tryLogin(btn) {
+    var fail = false;
+    var k2fx = btn.closest('.k2fx');
+    var usr = k2fx.find('.k2usr').val();
+    var pwd = k2fx.find('.k2pwd').val();
+    var url = k2fx.find('.k2btnLogin').attr('data-k2-url');
+    var validEmail = isValidEmail(usr);
+    k2fx.find('.k2msg').hide();
+    k2fx.find('.k2fail').removeClass(failClass);
+    //
+    var _modul = 'k2fx2formLogin';
+    var _action = 'load';
+    if (!usr || !validEmail || !pwd) {
+      fail = true;
+      k2fx.find('.k2fail').addClass(failClass);
+      k2fx.find('.k2msg1').show();
+      $(document).trigger('k2trigger', [{ modul: _modul, post: '', action: _action, fail: true, msg: ['.k2msg1'] }]);
+    }
+    //
+    if (!fail && !inAction) {
+      inAction = true;
+      $(document).trigger('k2trigger', [{ modul: _modul, post: 'start', action: _action }]);
+      $.post(post, {
+        l: 1,
+        usr: usr,
+        pwd: pwd
+      }, function (data) {
+        console.log('DATA = ' + data);
+        if (data == '1') {
+          $(document).trigger('k2trigger', [{ modul: _modul, post: 'end', action: _action, fail: false }]);
+          url = url.replace(/\/$/, "");
+          console.log(url);
+          window.location = url; // + window.location.hash;
+        } else if (data == '7') {
+          k2fx.find('.k2msg7').show();
+          $(document).trigger('k2trigger', [{ modul: _modul, post: 'end', action: _action, fail: true, msg: ['.k2msg7'] }]);
+        } else if (data == '6') {
+          k2fx.find('.k2msg6').show();
+          $(document).trigger('k2trigger', [{ modul: _modul, post: 'end', action: _action, fail: true, msg: ['.k2msg6'] }]);
+        } else if (data == '5') {
+          k2fx.find('.k2msg5').show();
+          $(document).trigger('k2trigger', [{ modul: _modul, post: 'end', action: _action, fail: true, msg: ['.k2msg5'] }]);
+        } else {
+          k2fx.find('.k2msg1').show();
+          $(document).trigger('k2trigger', [{ modul: _modul, post: 'end', action: _action, fail: true, msg: ['.k2msg1'] }]);
+        }
+        inAction = false;
+      }); //endpost
+    }
+    //--------------------------------------------------------------------------
+  }
+  //----------------------------------------------------------------------------
+  $(document).on('click', '.k2fx2profile .k2btnSave', function (e) {
+    e.preventDefault();
+    profileSave($(this));
+  });
+  //----------------------------------------------------------------------------
+  function profileSave(btn) {
+    var _modul = 'k2fx2profile';
+    var _action = 'save';
+    var fce = btn.closest('.' + _modul);
+    if (fce.length) {
+      fce.find('.k2msg').hide();
+      var check = checkInputs(fce, 0);
+      var isValid = check.isValid;
+      if (check.msg.length) {
+        $(document).trigger('k2trigger', [{ modul: _modul, post: '', action: _action, fail: true, msg: check.msg }]);
+      }
+      if (!inAction && isValid) {
+        var inputs = getInputs(fce);
+        //console.log(inputs);
+        inputs = JSON.stringify(inputs);
+        inAction = true;
+        $(document).trigger('k2trigger', [{ modul: _modul, state: 'start', action: _action }]);
+        $.post(post, {
+          l: 4,
+          inputs: inputs
+        }, function (data) {
+          console.log('DATA = ' + data);
+          if (data == 110 || data == 111 || data == 101) {
+            //console.log('saved');
+            k2msg = '.k2msg1';
+            fce.find(k2msg).show();
+            $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: false, msg: [k2msg] }]);
+          } else if (data == 120) {
+            k2msg = '.k2msg10';
+            fce.find(k2msg).show();
+            inputAddError(fce.find('.k2userName'));
+            $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: true, msg: [k2msg] }]);
+          } else if (data == 112) {
+            k2msg = '.k2msg8';
+            fce.find(k2msg).show();
+            inputAddError(fce.find('.k2pwd1'));
+            $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: true, msg: [k2msg] }]);
+          } else if (data == 113 || data == 103) {
+            k2msg = '.k2msg9';
+            fce.find(k2msg).show();
+            inputAddError(fce.find('.k2pwd1'));
+            inputAddError(fce.find('.k2pwd2'));
+            $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: true, msg: [k2msg] }]);
+          } else if (data == 115 || data == 105) {
+            k2msg = '.k2msg12';
+            fce.find(k2msg).show();
+            inputAddError(fce.find('.k2pwd0'));
+            $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: true, msg: [k2msg] }]);
+          } else {
+            console.log('failed');
+            k2msg = '.k2msg11';
+            fce.find(k2msg).show();
+            $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: true, msg: [k2msg] }]);
+          }
+          inAction = false;
+        });
+      }
+    }
+  }
+  //----------------------------------------------------------------------------
+  $(document).on('click', '.k2fx2partners .k2btnSet', function (e) {
+    e.preventDefault();
+    setPartner($(this), 'k2fx2partners');
+  });
+  $(document).on('click', '.k2fx2partnersSpecial .k2btnSet', function (e) {
+    e.preventDefault();
+    setPartner($(this), 'k2fx2partnersSpecial');
+  });
+  //----------------------------------------------------------------------------
+  function setPartner(btn, _modul) {
+    //var _modul = 'k2fx2partners';
+    var _action = 'save';
+    var fce = btn.closest('.' + _modul);
+    fce.find('.k2msg').hide();
+    var ID = parseInt(btn.attr('data-k2-id'));
+    if (ID > 0) {
+      ifDialog(btn, function () {
+        var item = btn.closest('[data-k2="item"]');
+        if (!inAction && item.length) {
+          inAction = true;
+          $(document).trigger('k2trigger', [{ modul: _modul, state: 'start', action: _action }]);
+          $.post(post, {
+            l: 5,
+            ID: ID
+          }, function (data) {
+            console.log('DATA = ' + data);
+            if (data == 1 || data == 2) {
+              //console.log('saved');
+              k2msg = '.k2msg1';
+              fce.find(k2msg).show();
+              fce.find('.k2act').addClass('k2hidden').hide();
+              fce.find('.k2set').removeClass('k2hidden').show();
+              item.find('.k2act').removeClass('k2hidden').show();
+              item.find('.k2set').addClass('k2hidden').hide();
+              $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: false, msg: [k2msg] }]);
+              if (data == 2) {
+                location.reload();
+              }
+              k2m5basketRefresh(0); //refresh vsech kosiku
+            } else {
+              console.log('failed');
+              k2msg = '.k2msg2';
+              fce.find(k2msg).show();
+              $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: true, msg: [k2msg] }]);
+            }
+            inAction = false;
+          });
+        }
+      }); //dialog
+    }
+
+  }
+
+  //----------------------------------------------------------------------------
+  $(document).on('click', '.k2fx2addressDetail .k2btnSave', function (e) {
+    e.preventDefault();
+    addressSave($(this));
+  });
+
+  //----------------------------------------------------------------------------
+  function addressSave(btn) {
+    var _modul = 'k2fx2addressDetail';
+    var _action = 'save';
+    var ID = btn.attr('data-k2-id');
+    var fce = btn.closest('.' + _modul);
+    if (fce.length) {
+      fce.find('.k2msg').hide();
+      var check = checkInputs(fce, 0);
+      var isValid = check.isValid;
+      if (check.msg.length) {
+        $(document).trigger('k2trigger', [{ modul: _modul, post: '', action: _action, fail: true, msg: check.msg }]);
+      }
+      if (!inAction && isValid && ID) {
+        var inputs = getInputs(fce);
+        //console.log(inputs);
+        inputs = JSON.stringify(inputs);
+        inAction = true;
+        $(document).trigger('k2trigger', [{ modul: _modul, state: 'start', action: _action }]);
+        $.post(post, {
+          l: 6,
+          ID: ID,
+          inputs: inputs
+        }, function (data) {
+          //console.log('DATA = ' + data);
+          var obj = tryParseJSON(data);
+          //console.log(obj);
+          if (!obj.fail && obj.ID) {
+            //console.log('saved');
+            btn.attr('data-k2-id', obj.ID);
+            k2msg = '.k2msg1';
+            fce.find(k2msg).show();
+            $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: false, msg: [k2msg] }]);
+          } else {
+            console.log('failed');
+            k2msg = '.k2msg2';
+            fce.find(k2msg).show();
+            $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: true, msg: [k2msg] }]);
+          }
+          inAction = false;
+        });
+      }
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  $(document).on('click', '.k2fx2addressDetail .k2btnDel', function (e) {
+    e.preventDefault();
+    addressDel($(this));
+  });
+
+  //----------------------------------------------------------------------------
+  function addressDel(btn) {
+    var _modul = 'k2fx2addressDetail';
+    var _action = 'save';
+    var ID = btn.attr('data-k2-id');
+    var fce = btn.closest('.' + _modul);
+    fce.find('.k2msg').hide();
+    var dialog = btn.attr('data-k2-dialog');
+    if (dialog == 1) {
+      //budu cekat na odpoved od Segiho.... mezitim zakurim... zajdu na obed... klasika...
+    }
+    if (!inAction && fce.length && ID) {
+      inAction = true;
+      $(document).trigger('k2trigger', [{ modul: _modul, state: 'start', action: _action }]);
+      $.post(post, {
+        l: 7,
+        ID: ID
+      }, function (data) {
+        console.log('DATA = ' + data);
+        if (data == 1) {
+          console.log('removed');
+          addressClearFrom(btn);
+          k2msg = '.k2msg13';
+          fce.find(k2msg).show();
+          $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: false, msg: [k2msg] }]);
+        } else {
+          console.log('failed');
+          k2msg = '.k2msg2';
+          fce.find(k2msg).show();
+          $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: true, msg: [k2msg] }]);
+        }
+        inAction = false;
+      });
+    }
+  }
+  //----------------------------------------------------------------------------
+  function addressClearFrom(btn) {
+    var form = btn.closest('.k2form');
+    form.find('input').val('');
+    form.find('.k2btn').remove();
+  }
+  //----------------------------------------------------------------------------
+  $(document).on('click', '.k2fx2formLogin .k2btn5', function (e) {
+    e.preventDefault();
+    reactivate($(this));
+  });
+  //----------------------------------------------------------------------------
+  function reactivate(btn) {
+    var _modul = 'k2fx2formLogin';
+    var _action = 'load';
+    var fce = btn.closest('.' + _modul);
+    var usr = fce.find('.k2usr').val();
+    fce.find('.k2msg').hide();
+    if (!inAction && fce.length && usr) {
+      inAction = true;
+      $(document).trigger('k2trigger', [{ modul: _modul, state: 'start', action: _action }]);
+      $.post(post, {
+        l: 10,
+        usr: usr
+      }, function (data) {
+        //console.log('DATA = ' + data);
+        var d = tryParseJSON(data);
+        if (typeof d === 'object' && d.fail == false) {
+          k2msg = '.k2msg8';
+          fce.find(k2msg).show();
+          $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: false, msg: [k2msg] }]);
+        } else {
+          console.log(d);
+          k2msg = '.k2msg9';
+          fce.find(k2msg).show();
+          $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: true, msg: [k2msg] }]);
+        }
+        inAction = false;
+      });
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  $(document).on('click', '.k2fx2registrationControl .k2btn', function (e) {
+    e.preventDefault();
+    registrationControlSet($(this));
+  });
+
+  //----------------------------------------------------------------------------
+  function registrationControlSet(btn) {
+    var _modul = 'k2tx2registrationControl';
+    var _action = 'save';
+    var fce = btn.closest('.' + _modul);
+    var set = btn.attr('data-k2-set');
+    var crc = fce.attr('data-k2-crc');
+    if (!inAction && fce.length && crc && set) {
+      inAction = true;
+      $(document).trigger('k2trigger', [{ modul: _modul, state: 'start', action: _action }]);
+      $.post(post, {
+        l: 11,
+        crc: crc,
+        set: set
+      }, function (data) {
+        //console.log('DATA = ' + data);
+        var d = tryParseJSON(data);
+        if (typeof d === 'object' && d.fail == false) {
+          fce.replaceWith(d.html);
+          $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: false, msg: [], action: d.action }]);
+        } else {
+          console.log(d);
+          $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: true, msg: [] }]);
+        }
+        inAction = false;
+      });
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  function registrationControlRefresh(msgToShow) {
+    var _modul = 'k2tx2registrationControl';
+    var _action = 'load';
+    var fce = $('.' + _modul);
+    var crc = fce.attr('data-k2-crc');
+    if (fce.length && crc) {
+      //inAction = true;
+      $(document).trigger('k2trigger', [{ modul: _modul, state: 'start', action: _action }]);
+      $.post(post, {
+        l: 12,
+        crc: crc
+      }, function (data) {
+        //console.log('DATA = ' + data);
+        var d = tryParseJSON(data);
+        if (typeof d === 'object' && d.fail == false) {
+          fce.replaceWith(d.html);
+          fce = $('.' + _modul);
+          fce.find(msgToShow).show();
+          $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: false, msg: [], action: d.action }]);
+        } else {
+          console.log(d);
+          $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: true, msg: [] }]);
+        }
+        //inAction = false;
+      });
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  $(document).on('change', '.k2tx2documentUpload .k2btnFileUpload', function (e) {
+    e.preventDefault();
+    var _modul = 'k2tx2documentUpload';
+    var _action = 'prepare';
+    var el = $(this);
+    var fce = el.closest('.k2tx');
+    var type = el.attr('data-k2-type');
+    console.log('k2tx2documentUpload');
+    fce.find('[data-k2="attContainer"] [data-k2="attNoItem"]').remove();
+    fce.find('[data-k2="attContainer"] .k2notUploaded').remove();
+    documentUploadFileList[type] = [];
+    var CRC = el.attr('data-k2-attItem');
+
+    var len = el.prop('files').length;
+    if (len > 0) {
+      //console.log('upload');
+      var ii = 1;
+      var i = 0;
+      $(document).trigger('k2trigger', [{ modul: _modul, state: 'start', action: _action, data: { len: len } }]);
+
+      if (CRC) {
+        for (var i = 0; i < len; i++) {
+          documentUploadFileList[type].push(el.prop('files')[i]);
+          var filesizeInBytes = el.prop('files')[i].size;
+          var filesizeInMB = (filesizeInBytes / (1024 * 1024)).toFixed(2);
+          var filename = el.prop('files')[i].name;
+          $.post(post, {
+            l: 13,
+            i: i,
+            CRC: CRC,
+            filename: filename,
+            filesizeInMB: filesizeInMB
+          }, function (data) {
+            //console.log('DATA = ' + data);
+            var d = tryParseJSON(data);
+            if (typeof d === 'object' && d.ok == true) {
+              fce.find('[data-k2="attContainer"]').append(d.html);
+              $(document).trigger('k2trigger', [{ modul: _modul, state: 'file', action: _action, fail: false, data: { i: i } }]);
+            } else {
+              console.log('DATA = ' + data);
+              $(document).trigger('k2trigger', [{ modul: _modul, state: 'file', action: _action, fail: true, data: { i: i } }]);
+            }
+            if (ii == len) {
+              console.log('all uploads prepared');
+              $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: false }]);
+            }
+            ii++;
+          });
+          //var html = '<div data-k2="attItem" class="notuploaded notuploaded' + i + '"><span class="file_load flex_center"><span class="k2attFile">' + filename + ' [' + filesizeInMB + 'MB]' + '</span></span></div>';
+          //$('[data-k2="attContainer"]').prepend(html);
+        }
+        el.replaceWith(el.clone()); //reset
+      }
+    }
+    console.log(documentUploadFileList[type]);
+  });
+
+  //----------------------------------------------------------------------------
+  $(document).on('click', '.k2tx2documentUpload .k2btnSendUpload', function (e) {
+    e.preventDefault();
+    uploadFile($(this));
+  });
+
+  //----------------------------------------------------------------------------
+  function uploadFile(btn) {
+    var _modul = 'k2tx2registrationControl';
+    var _action = 'upload';
+    var type = btn.attr('data-k2-type');
+    var len = documentUploadFileList[type].length;
+    if (len > 0) {
+      console.log('upload ' + type);
+      var ii = 1;
+      var i = 0;
+      $(document).trigger('k2trigger', [{ modul: _modul, state: 'start', action: _action, data: { len: len } }]);
+
+      documentUploadFileList[type].forEach(function (file) {
+        var formData = new FormData();
+        formData.append('file', file);
+        var url = post + '?l=14&td=' + type + '&i=' + i;
+        $.ajax({
+          url: url,
+          dataType: 'text',
+          cache: false,
+          contentType: false,
+          processData: false,
+          data: formData,
+          type: 'post',
+          success: function (data) {
+            var d = tryParseJSON(data);
+            if (typeof d === 'object') {
+              if (d.ok == true) {
+                $(document).trigger('k2trigger', [{ modul: _modul, state: 'file', action: _action, fail: false, data: { i: i } }]);
+                $('.k2upload' + d.i).removeClass('k2notUploaded').addClass('k2uploaded');
+              } else {
+                $(document).trigger('k2trigger', [{ modul: _modul, state: 'file', action: _action, fail: true, data: { i: i } }]);
+                console.log(d);
+              }
+            } else {
+              console.log('DATA = ' + data);
+              $(document).trigger('k2trigger', [{ modul: _modul, state: 'file', action: _action, fail: true, data: { i: i } }]);
+            }
+            if (ii == len) {
+              console.log('all uploads processed');
+              $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: false }]);
+              documentUploadFileList[type] = [];
+              documentListRefresh();
+            }
+            ii++;
+          }
+        });
+        i++;
+      });
+    } else {
+      console.log('documentUploadFileList ' + type + ' is empty');
+    }
+  }
+
+  function documentListRefresh() {
+    console.log('refresh');
+    var _modul = 'k2tx2documentList';
+    var _action = 'load';
+    var fce = $('.' + _modul);
+    var crc = fce.attr('data-k2-crc');
+    if (fce.length && crc) {
+      $(document).trigger('k2trigger', [{ modul: _modul, state: 'start', action: _action }]);
+      $.post(post, {
+        l: 15,
+        crc: crc
+      }, function (data) {
+        //console.log('DATA = ' + data);
+        var d = tryParseJSON(data);
+        if (typeof d === 'object' && d.ok == true) {
+          fce.replaceWith(d.html);
+          fce = $('.' + _modul);
+          $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: false, msg: [], action: d.action }]);
+        } else {
+          console.log('DATA = ' + data);
+          console.log(d);
+          $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: true, msg: [] }]);
+        }
+      });
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  $(document).on('click', '.k2tx2loyaltyCouponList .k2btnGenerateCoupon', function (e) {
+    e.preventDefault();
+    generateCoupon($(this));
+  });
+
+  function generateCoupon(btn) {
+    console.log('generateCoupon');
+    var _modul = 'k2tx2loyaltyCouponList';
+    var _action = 'create';
+    var fce = $('.' + _modul);
+    var crc = fce.attr('data-k2-crc');
+    var form = btn.parent();
+    var points = form.find('[name="k2CouponPoints"]').val();
+    points = points !== "" ? points : 0;
+    var minPoints = form.find('[name="k2CouponPoints"]').attr('min');
+    var N = form.attr('data-number');
+    var ID = form.attr('data-id-coupon');
+    var ProgramID = form.attr('data-id-program');
+    if (typeof points === "undefined" || parseInt(points) > parseInt(minPoints)) {
+      if (fce.length && crc) {
+        $(document).trigger('k2trigger', [{ modul: _modul, state: 'start', action: _action }]);
+        $.post(post, {
+          l: 16,
+          points: points,
+          ID: ID,
+          ProgramID: ProgramID,
+          crc: crc
+        }, function (data) {
+          //                console.log('DATA = ' + data);
+          var d = tryParseJSON(data);
+          if (typeof d === 'object' && d.fail == false && d.coupon !== '') {
+            loyaltyCouponListRefresh();
+            couponListRefresh();
+            k2m5basketRefresh(0);
+            k2msg = '.k2msg1';
+            fce.find(k2msg).show();
+            $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: false, msg: k2msg, action: d.action, coupon: d.coupon }]);
+          } else {
+            console.log('DATA = ' + data);
+            console.log(d);
+            k2msg = '.k2msg2';
+            fce.find(k2msg).show();
+            $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: true, msg: k2msg }]);
+          }
+        });
+      }
+    } else {
+      k2msg = '.k2msg3' + ID;
+      fce.find(k2msg).show();
+      $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: true, msg: k2msg }]);
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  $(document).on('click', '.k2tx2couponList .k2btnApplyCoupon', function (e) {
+    e.preventDefault();
+    applyCoupon($(this));
+  });
+
+  function applyCoupon(btn) {
+    console.log('applyCoupon');
+    var _modul = 'k2tx2couponList';
+    var _action = 'apply';
+    var fce = $('.' + _modul);
+    var form = btn.parent();
+    var code = form.attr('data-k2-code');
+    if (code) {
+      if (!inAction) {
+        inAction = true;
+        $(document).trigger('k2trigger', [{ modul: _modul, post: 'start', action: _action }]);
+        $.post(post, {
+          l: 17,
+          code: code
+        }, function (data) {
+          //                    console.log('DATA = ' + data);
+          var d = tryParseJSON(data);
+          if (typeof d === 'object' && d.fail == false && d.state > 2) {
+            //console.log(d);
+            k2msg = '.k2msg1' + d.state;
+            if (d.state == 3) {
+              k2m5basketRefresh(0);
+            } else {
+              fce.find('.k2msg4translated').html(d.failTranslated);
+              $(document).trigger('k2trigger', [{ modul: _modul, post: 'end', action: _action, fail: true, msg: [k2msg] }]);
+              console.log(d);
+            }
+            $(document).trigger('k2trigger', [{ modul: _modul, post: 'end', action: _action, fail: false, msg: [k2msg] }]);
+          } else {
+            k2msg = '.k2msg2';
+            //                        fce.find(k2msg).find('.k2couponCode').text(code);
+            fce.find(k2msg).show();
+            $(document).trigger('k2trigger', [{ modul: _modul, post: 'end', action: _action, fail: true, msg: [k2msg] }]);
+            console.log(d);
+          }
+          inAction = false;
+        }); //endpost
+      }
+    } else {
+      k2msg = '.k2msg1';
+      fce.find(k2msg).show();
+    }
+  }
+
+  function couponListRefresh() {
+    console.log('refresh');
+    var _modul = 'k2tx2couponList';
+    var _action = 'reload';
+    var fce = $('.' + _modul);
+    var crc = fce.attr('data-k2-crc');
+    if (fce.length && crc) {
+      $(document).trigger('k2trigger', [{ modul: _modul, state: 'start', action: _action }]);
+      $.post(post, {
+        l: 18,
+        crc: crc
+      }, function (data) {
+        console.log('DATA = ' + data);
+        var d = tryParseJSON(data);
+        if (typeof d === 'object' && d.ok == true) {
+          fce.replaceWith(d.html);
+          fce = $('.' + _modul);
+          console.log(d);
+          $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: false, msg: [], action: d.action }]);
+        } else {
+          console.log('DATA = ' + data);
+          console.log(d);
+          $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: true, msg: [] }]);
+        }
+      });
+    }
+  }
+
+  function loyaltyCouponListRefresh() {
+    console.log('refresh');
+    var fakeModul = 'loyaltyCouponListRefresh';
+    var _modul = 'k2tx2loyaltyCouponList';
+    var _action = 'reload';
+    var fce = $('.' + _modul);
+    var crc = fce.attr('data-k2-crc');
+    if (fce.length && crc) {
+      $(document).trigger('k2trigger', [{ modul: fakeModul, state: 'start', action: _action }]);
+      $.post(post, {
+        l: 19,
+        crc: crc
+      }, function (data) {
+        console.log('DATA = ' + data);
+        var d = tryParseJSON(data);
+        if (typeof d === 'object' && d.ok == true) {
+          fce.replaceWith(d.html);
+          fce = $('.' + _modul);
+          console.log(d);
+          $(document).trigger('k2trigger', [{ modul: fakeModul, state: 'end', action: _action, fail: false, msg: [], action: d.action }]);
+        } else {
+          console.log('DATA = ' + data);
+          console.log(d);
+          $(document).trigger('k2trigger', [{ modul: fakeModul, state: 'end', action: _action, fail: true, msg: [] }]);
+        }
+      });
+    }
+  }
+
+  function tryLogout() {
+    console.log('tryLogout');
+    var _modul = 'k2tx2tryLogout';
+    var _action = 'logout';
+    $(document).trigger('k2trigger', [{ modul: _modul, state: 'start', action: _action }]);
+    $.post(post, {
+      l: 20
+    }, function (data) {
+      console.log('DATA = ' + data);
+      var d = tryParseJSON(data);
+      if (typeof d === 'object' && d.ok == true) {
+        console.log(d);
+        $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: false, msg: [] }]);
+      } else {
+        console.log('DATA = ' + data);
+        console.log(d);
+        $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: true, msg: [] }]);
+      }
+    });
+  }
+
+  //----------------------------------------------------------------------------
+  $(document).on('click', '.k2fx2branchInfo .k2branchItem', function (e) {
+    branchSet($(this));
+  });
+
+  $(document).on('click', '.k2fx2branchInfo .k2btnRemoveBranch', function (e) {
+    branchSet($(this));
+  });
+
+  function branchSet(btn) {
+    var _modul = 'k2fx2branchInfo';
+    var _action = 'save';
+    var enc = btn.attr('data-k2-enc');
+    if (!inAction && enc) {
+      inAction = true;
+      $('.k2fx2branchInfo .k2branchItem').attr('disabled', 'disabled');
+      $(document).trigger('k2trigger', [{ modul: _modul, state: 'start', action: _action }]);
+      $.post(post, {
+        l: 22,
+        enc: enc
+      }, function (data) {
+        //console.log('DATA = ' + data);
+        var d = tryParseJSON(data);
+        if (typeof d === 'object' && d.ok == true) {
+          location.reload();
+          $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: false, msg: [], action: d.action }]);
+        } else {
+          console.log('DATA = ' + data);
+          console.log(d);
+          $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: true, msg: [] }]);
+        }
+        inAction = false;
+      });
+    }
+  }
+
+  return {
+    resetPassword: resetPassword,
+    tryRegister: tryRegister,
+    documentListRefresh: documentListRefresh,
+    tryLogout: tryLogout,
+  };
+})();

@@ -1,0 +1,343 @@
+var k2productSearch = function () { };
+(function () {
+  var post = x(currentExecutingScript());
+  var inAction = false;
+
+  $(document).ready(function () {
+    comparsionInit();
+  });
+
+  function comparsionInit() {
+    var el = $('.k2tx4comparsion');
+    if (el.length) {
+      var url = el.attr('data-k2-url');
+      if (url) {
+        changeAddressBarUrl(url);
+      }
+    }
+  }
+
+  $(document).on('click', '.k2fx4search .k2btnProductSearch', function (e) {
+    e.preventDefault();
+    k2productSearch($(this));
+  });
+
+  k2productSearch = function productSearch(btn) {
+    btn = $(btn); //Segifix
+    var _modul = 'k2fx4search';
+    var _action = 'load';
+    var fce = btn.closest('.' + _modul);
+    fce.find('.k2msg').hide();
+    var txt = fce.find('.k2productSearch').val();
+    var crc = fce.find('.k2tx').attr('data-k2-crc');
+    var whisper = btn.attr('data-k2-whisper');
+    var explicit = btn.attr('data-k2-explicit');
+    var fail = true;
+    var segiData = {};
+    if (whisper != 1) { whisper = 0; }
+    if (crc && txt.length > 0) {
+      //ifDialog(btn, function () {
+      if (!inAction) {
+        inAction = true;
+        $(document).trigger('k2trigger', [{ modul: _modul, state: 'start', action: _action }]);
+        $.post(post, {
+          l: 1,
+          txt: txt,
+          crc: crc,
+          whisper: whisper,
+          explicit: explicit
+        }, function (data) {
+          //console.log('DATA = ' + data);
+          var d = tryParseJSON(data);
+          if (typeof d === 'object') {
+            console.log(d);
+            var href = fce.find('.k2searchHref').attr('data-k2-href');
+            fce.find('.k2searchHref').attr('href', href + '?search=' + d.href);
+
+            if ((d.isElastic && (d.elasticCounts.blog > 0 || d.elasticCounts.brand > 0 || d.elasticCounts.category > 0)) || d.result > 0) {
+              fce.find('.k2noItem').hide();
+              fce.find('.k2ifItem').show();
+              if (d.hasOwnProperty('container')) {
+                fce.find('[data-k2="container"]').html(d.container);
+                fce.find('[data-k2="container"]').show();
+                fce.find('.k2noItemProduct').hide();
+              } else {
+                fce.find('[data-k2="container"]').hide();
+                fce.find('.k2noItemProduct').show();
+              }
+              d.elasticCounts.product = d.result;
+
+            } else {
+              fce.find('.k2ifItem').hide();
+              fce.find('.k2noItem').show();
+            }
+            if (d.isElastic) {
+              if (d.hasOwnProperty('containerCategory')) {
+                fce.find('[data-k2="containerCategory"]').html(d.containerCategory);
+                fce.find('.k2noItemCategory').hide();
+              } else {
+                fce.find('[data-k2="containerCategory"]').html('');
+                fce.find('.k2noItemCategory').show();
+              }
+              if (d.hasOwnProperty('containerBrand')) {
+                fce.find('[data-k2="containerBrand"]').html(d.containerBrand);
+                fce.find('.k2noItemBrand').hide();
+              } else {
+                fce.find('[data-k2="containerBrand"]').html('');
+                fce.find('.k2noItemBrand').show();
+              }
+              if (d.hasOwnProperty('containerBlog')) {
+                fce.find('[data-k2="containerBlog"]').html(d.containerBlog);
+                fce.find('.k2noItemBlog').hide();
+              } else {
+                fce.find('[data-k2="containerBlog"]').html('');
+                fce.find('.k2noItemBlog').show();
+              }
+              if (d.disCategory) {
+                fce.find('[data-k2="searchCategory"]').hide();
+              } else {
+                fce.find('[data-k2="searchCategory"]').show();
+              }
+              if (d.disBrand) {
+                fce.find('[data-k2="searchBrand"]').hide();
+              } else {
+                fce.find('[data-k2="searchBrand"]').show();
+              }
+              if (d.disBlog) {
+                fce.find('[data-k2="searchBlog"]').hide();
+              } else {
+                fce.find('[data-k2="searchBlog"]').show();
+              }
+            } else {
+              fce.find('[data-k2="searchCategory"]').hide();
+              fce.find('[data-k2="searchBrand"]').hide();
+              fce.find('[data-k2="searchBlog"]').hide();
+            }
+            segiData['elasticCounts'] = d.elasticCounts;
+            if (d.hasOwnProperty('dataLayer')) {
+              segiData['dataLayer'] = d.dataLayer;
+            }
+            fail = false;
+          } else {
+            console.log('search failed');
+            console.log('DATA = ' + data);
+          }
+          inAction = false;
+          $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: fail, msg: [], data: segiData }]);
+
+        });
+      }
+      //}); //dialog
+    } else {
+      fce.find('[data-k2="container"]').html('');
+      fce.find('.k2noItem').hide();
+      fce.find('.k2ifItem').hide();
+    }
+  }
+
+  $(document).on('click', '.k2fx4searchDetail .k2btnProductSearch', function (e) { //classic
+    e.preventDefault();
+    productSearchDetail($(this));
+  });
+
+  $(document).on('click', '.k2fx4searchDetail .k2btnSearchTxt', function (e) { //elastic
+    e.preventDefault();
+    productSearchDetailElastic($(this));
+  });
+  //
+
+  function productSearchDetailElastic(btn) {
+    var _modul = 'k2fx4searchDetail';
+    var _action = 'load';
+    var fce = btn.closest('.' + _modul);
+    fce.find('.k2msg').hide();
+    var txt = fce.find('.k2searchTxt').val();
+    var crc = fce.find('.k2tx').attr('data-k2-crc');
+    if (crc && txt.length > 0) {
+      console.log('elastic search');
+      if (!inAction) {
+        inAction = true;
+        $(document).trigger('k2trigger', [{ modul: _modul, state: 'start', action: _action }]);
+        $.post(post, {
+          l: 3,
+          txt: txt,
+          crc: crc
+        }, function (data) {
+          var fail = true;
+          //console.log('DATA = ' + data);
+          var d = tryParseJSON(data);
+          if (typeof d === 'object') {
+            //console.log(d);
+            if (d.hasOwnProperty('html')) {
+              fail = false;
+              fce.html(d.html);
+              href = btn.attr('data-k2-href') + '?search=' + d.href;
+              //console.log(href);
+              history.pushState({}, null, href);
+              $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: false, msg: [] }]);
+            }
+          }
+          if (fail) {
+            console.log('search failed');
+            console.log('DATA = ' + data);
+            $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: true, msg: [] }]);
+          }
+          inAction = false;
+          fce.find('.k2noSearch').hide().addClass('k2hidden');
+          fce.find('[data-k2="searchBrand"],[data-k2="searchBlog"],[data-k2="searchCategory"],[data-k2="searchProduct"]').show().removeClass('k2hidden');
+        });
+      }
+    } else {
+      fce.find('[data-k2="container"]').html('');
+      fce.find('.k2noSearch').show().removeClass('k2hidden');
+      fce.find('[data-k2="searchBrand"],[data-k2="searchBlog"],[data-k2="searchCategory"],[data-k2="searchProduct"]').hide().addClass('k2hidden');
+    }
+  }
+
+  function productSearchDetail(btn) {
+    var _modul = 'k2fx4searchDetail';
+    var _action = 'load';
+    var fce = btn.closest('.' + _modul);
+    fce.find('.k2msg').hide();
+    var txt = fce.find('.k2productSearch').val();
+    var crc = fce.find('.k2tx').attr('data-k2-crc');
+    var f = fce.find('[data-k2="favoriteSearch"]').length;
+    var filter = getProductSearchFilter(fce);
+    if (crc && txt.length > 0) {
+      console.log('classic search');
+      //ifDialog(btn, function () {
+      $('[data-k2="favoriteSearch"] .k2favoriteText').val(txt);
+      if (!inAction) {
+        inAction = true;
+        $(document).trigger('k2trigger', [{ modul: _modul, state: 'start', action: _action }]);
+        $.post(post, {
+          l: 1,
+          txt: txt,
+          crc: crc,
+          f: f,
+          filter: JSON.stringify(filter),
+        }, function (data) {
+          //console.log('DATA = ' + data);
+          var d = tryParseJSON(data);
+          if (typeof d === 'object') {
+            //console.log(d);
+            fce.find('.k2noSearch').hide().addClass('k2hidden');
+            if (d.result > 0) {
+              fce.find('.k2noItem').hide().addClass('k2hidden');
+              fce.find('.k2ifItem').show().removeClass('k2hidden');
+              if (d.hasOwnProperty('container')) {
+                fce.find('[data-k2="container"]').html(d.container);
+              }
+              if (d.hasOwnProperty('fav')) {
+                if (d.fav == 'add') {
+                  $('[data-k2="favoriteSearch"] .k2btnFavoriteAdd').attr('data-k2-id', d.add).removeClass('k2hidden');
+                  $('[data-k2="favoriteSearch"] .k2btnFavoriteDel').addClass('k2hidden');
+                } else { //del
+                  $('[data-k2="favoriteSearch"] .k2btnFavoriteAdd').addClass('k2hidden');
+                  $('[data-k2="favoriteSearch"] .k2btnFavoriteDel').removeClass('k2hidden');
+                }
+                $('[data-k2="favoriteSearch"] .k2btnFavoriteDel').attr('data-k2-id', d.del);
+
+              }
+            } else {
+              fce.find('.k2ifItem').hide().addClass('k2hidden');
+              fce.find('.k2noItem').show().removeClass('k2hidden');
+            }
+            if (d.par) {
+              var href = btn.attr('data-k2-href') + '?search=' + d.par;
+            } else {
+              var href = btn.attr('data-k2-href') + '?search=' + d.href;
+            }
+            //console.log(href);
+            history.pushState({}, null, href);
+            fce.find('[data-k2="pagination"]').html(d.pagination);
+            fce.find('[data-k2="sortContainer"]').html(d.sortContainer);
+            fce.find('[data-k2="countContainer"]').html(d.countContainer);
+            $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: false, msg: [] }]);
+
+          } else {
+            console.log('search failed');
+            console.log('DATA = ' + data);
+            $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: true, msg: [] }]);
+          }
+          inAction = false;
+        });
+      }
+      //}); //dialog
+    } else {
+      fce.find('[data-k2="container"]').html('');
+      fce.find('.k2noSearch').show().removeClass('k2hidden');
+      fce.find('.k2noItem').hide().addClass('k2hidden');
+      fce.find('.k2ifItem').hide().addClass('k2hidden');
+    }
+  }
+
+  function getProductSearchFilter(fce) {
+    var el = fce.find('[data-k2="searchFilter"]:first');
+    if (el.length) {
+      var out = {};
+      out['ma'] = {};
+      //out['vmin'] = fce.find('[name="k2priceMin"]').attr('min');
+      //out['vmax'] = fce.find('[name="k2priceMax"]').attr('max');
+      if (fce.find('[data-k2="filterMa"]').length) {
+        $('[name="manufacturer"]').each(function () {
+          if ($(this).is(':checked')) {
+            val = 1;
+          } else {
+            val = 0;
+          }
+          out['ma'][$(this).attr('data-value')] = val;
+        });
+      }
+      out['inp'] = getInputs(el);
+    }
+    return out;
+  }
+
+  $(document).on('click', '.k2btnProductCompareAdd', function (e) {
+    e.preventDefault();
+    productCompare($(this), 1);
+  });
+
+  $(document).on('click', '.k2btnProductCompareDel', function (e) {
+    e.preventDefault();
+    productCompare($(this), 2);
+  });
+
+  function productCompare(btn, type) {
+    var _modul = 'm4productCompare';
+    var _action = 'add';
+    //var fail = false;
+    //var k2fx = btn.closest('.k2fx');
+    var k2item = btn.closest('.k2item');
+    var ID = parseInt(btn.attr('data-k2-id'));
+    if (!inAction && ID) {
+      inAction = true;
+      $(document).trigger('k2trigger', [{ modul: _modul, state: 'start', action: _action }]);
+      $.post(post, {
+        l: 2,
+        ID: ID,
+        type: type
+      }, function (data) {
+        //console.log('DATA = ' + data);
+        if (data == 1) {
+          //console.log('pridano');
+          $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: false, msg: [] }]);
+          k2item.find('.k2btnProductCompareAdd').addClass('k2hidden');
+          k2item.find('.k2btnProductCompareDel').removeClass('k2hidden');
+          //comparsionReload()
+        } else if (data == 2) {
+          //console.log('odebrano');
+          k2item.find('.k2btnProductCompareDel').addClass('k2hidden');
+          k2item.find('.k2btnProductCompareAdd').removeClass('k2hidden');
+          //comparsionReload()
+        } else {
+          console.log('failed');
+          $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: true, msg: [] }]);
+        }
+        inAction = false;
+      });
+    }
+  }
+
+})();

@@ -1,0 +1,10 @@
+document.addEventListener("DOMContentLoaded", function (event) {
+      var isChrome = /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor),
+          editablePre = document.querySelector('.editable_pre_container');
+
+      if ((isChrome) && (editablePre)) {
+          editablePre.setAttribute('style', 'diplay: block !important');
+      } else{
+          editablePre.outerHTML = "";
+      }
+  });

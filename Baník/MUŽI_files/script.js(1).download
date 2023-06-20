@@ -1,0 +1,625 @@
+videoBanner();
+configurationDetail();
+activeLinkSpecial();
+packetyWidget();
+searchFocus();
+variantBuy();
+productKit();
+postaWidget()
+
+window.addEventListener('DOMContentLoaded', function (event) {
+    permiceForm();
+});
+
+
+
+function dataDelivery(data) {
+    console.log('nazdar');
+    console.log(data);
+    if (data == "") {
+        doc.el('[data-k2="delivery"] .k2name').value = "";
+        doc.el('[data-k2="delivery"] .k2street').value = "";
+        doc.el('[data-k2="delivery"] .k2city').value = "";
+        doc.el('[data-k2="delivery"] .k2ZIP').value = "";
+    } else {
+        doc.el('[data-k2="delivery"] .k2name').value = data.place;
+        doc.el('[data-k2="delivery"] .k2street').value = data.street;
+        doc.el('[data-k2="delivery"] .k2city').value = data.city;
+        doc.el('[data-k2="delivery"] .k2ZIP').value = data.zip;
+    }
+}
+
+
+function selectbranch(el, id, data, recalc) {
+    var item = el.closest('[data-k2="deliveryItem"]');
+    var elZasilkovna = item.el('.zasilkovna_name');
+    recalc = (recalc == undefined ? false : recalc);
+    if (id == "") {
+        elZasilkovna.classList.add('hide');
+        elZasilkovna.innerHTML = "";
+        dataDelivery("");
+        el.removeAttribute('data-k2-bb1');
+    } else {
+        console.log(data);
+        elZasilkovna.innerHTML = "<b>" + data.place + "</b><div>" + data.name + "</div>";
+        elZasilkovna.classList.remove('hide');
+        dataDelivery(data);
+        el.setAttribute('data-k2-bb1', id);
+    }
+
+    el.value = id;
+    //el.trigger('change');
+    //item.el('.k2delivery').trigger('click');
+    if (recalc) {
+        doc.el('.k2payment:checked').click();
+    }
+}
+
+function postaWidget() {
+    var element = "";
+
+    doc.allEl('.k2delivery').forEach(function (el) {
+        if (el.getAttribute('data-id') == 5772436045825 || el.getAttribute('data-id') == 5772436045827) {
+            el.closest('[data-k2="deliveryItem"]').el('[data-k2="selectBranch2"]').setAttribute('name', 'k2branch');
+            el.closest('[data-k2="deliveryItem"]').el('[data-k2="selectBranch2"]').setAttribute('data-k2', 'selectBranch');
+            console.log(el.closest('[data-k2="deliveryItem"]').el('.btn_branch_shipping_posta'))
+            el.closest('[data-k2="deliveryItem"]').el('.btn_branch_shipping_posta').addEventListener('click', function(){
+                this.closest('[data-k2="deliveryItem"]').el('.k2delivery').click();
+            }, true);
+
+            if (el.checked) {
+                doc.el('[data-k2="invoice"]').classList.remove('not_packety');
+            }
+
+            el.addEventListener('click', clickDelivery, true);
+
+        }
+    })
+    function clickDelivery(e) {
+
+        doc.el('.k2invAsDel').checked = false;
+        doc.el('[data-k2="invoice"]').classList.remove('not_packety');
+        doc.allEl('[data-k2="selectBranch"]').forEach(function (t) {
+            selectbranch(t, "");
+        })
+
+
+        //this.el('[name="radio-delivery"]').trigger('change');
+        element = this.closest('[data-k2="deliveryItem"]').el('[data-k2="selectBranch"]');
+        this.closest('[data-k2="deliveryItem"]').el('[name="radio-delivery"]').checked = true;
+        el = doc.createElement('div')
+        if (this.getAttribute('data-id') == 5772436045825){
+            el.innerHTML = '<iframe title="Výběr místa pro vyzvednutí zásilky" src="https://b2c.cpost.cz/locations/?type=POST_OFFICE" allow="geolocation" />';
+        } else if(this.getAttribute('data-id') == 5772436045827){
+            el.innerHTML = '<iframe title="Výběr místa pro vyzvednutí zásilky" src="https://b2c.cpost.cz/locations/?type=BALIKOVNY" allow="geolocation" />';
+        }
+        popup("posta", "Výběr místa pro vyzvednutí zásilky", el);
+    }
+    function iframeListener(event) {
+        if (event.data.message === "pickerResult") {
+            if (event.data.id) {
+                doc.el('.popup_wrap.posta').previousElementSibling.click();
+                var data = {};
+                data.place = event.data.point.name;
+                data.name = event.data.point.address;
+                data.street = event.data.point.address;
+                data.city = event.data.point.address;
+                data.zip = event.data.point.zip;
+                console.log(event.data.point)
+                selectbranch(element, event.data.id, data, true);
+            }
+        }
+    }
+    window.addEventListener("message", iframeListener)
+}
+
+function productKit(){
+    if(doc.querySelector('.kit_container')){
+        doc.elementListner('.productBuy_kit', 'click', function(e){
+            var itemCount = 0;
+            var errorCount = 0;
+
+            doc.allEl('.set_item').forEach(function(item){
+                if(item.querySelector('input')){
+                    itemCount++;
+                    console.log(item.querySelector('input:checked') == null)
+                    if(item.querySelector('input:checked') != null) {
+                        errorCount++;
+                    }
+                }
+            });
+
+            if(itemCount != errorCount){
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                console.log("NESMIS poslat");
+                doc.el('.msg_kit_conf').style.display = "block";
+            } else {
+                console.log("muzes poslat");
+                doc.el('.msg_kit_conf').style.display = "none";
+                doc.allEl('.set_item').forEach(function(item){
+                  if(item.querySelector('input:checked')){
+                      item.querySelector('input:checked').checked = false;
+                  }
+                });
+
+            }
+        });
+
+
+        doc.elementListner('.radio_kit', 'change', function(e){
+            console.log(this)
+            if(typeof m0kitConfigurator !== "undefined"){
+                m0kitConfigurator[this.getAttribute('name')].ID = this.getAttribute('data-id');
+                m0kitConfigurator[this.getAttribute('name')].size = this.getAttribute('data-size');
+                doc.el('.k2productBuyNote').value = JSON.stringify(m0kitConfigurator);
+                doc.el('.k2productBuyNote').classList.add('kit_note');
+            }
+        });
+    }
+}
+
+function variantBuy(){
+    if(doc.querySelector('[data-k2="m0variants"]:not(:empty)')){
+        doc.elementListner('.productBuy_btn', 'click', function (e) {
+            var isBuy = document.querySelector('.variant_item.active') == null ? true : false;
+
+            if(isBuy){
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                console.error('Vyberte prosím variantu');
+
+                if(!doc.el('.variant_error').isVisible()){
+                    doc.el('.variant_error').classList.add('msg_visible');
+                    setTimeout(function(){
+                        doc.el('.variant_error').classList.remove('msg_visible')
+                    },5000);
+                }
+            }
+        });
+    }
+}
+
+function searchFocus(){
+
+         doc.elementListner('.header_button_search', 'click', function () {
+            if(!this.classList.contains('active')){
+                console.log(!this.classList.contains('active'));
+                setTimeout(function(){
+                    doc.el('.search_form input').focus();
+                },10);
+            }
+         })
+}
+
+function permiceForm(){
+    if(doc.querySelector('.btn_permice')){
+         doc.elementListner('.btn_permice', 'click', function () {
+            val = doc.el('.input_permice').value;
+            if(val == ""){
+                doc.el('.input_permice').classList.add('error');
+            } else {
+                doc.el('.input_permice').classList.remove('error');
+            }
+         })
+
+ $(document).on('k2trigger', function (e, msg) {
+        console.log(msg);
+
+        if (msg.modul == 'permice') {
+            if ((msg.action === 'save')) {
+                if ((msg.post === 'start')) {
+                    loading(true);
+                    doc.el('.permice_error').style.display = "";
+                    doc.el('.permice_done').style.display = "";
+                } else if (msg.post === 'end') {
+                    loading(false);
+                    if(msg.data == 1){
+                        location.reload();
+                        //doc.el('.permice_done').style.display = "block";
+                    } else {
+                        doc.el('.permice_error').style.display = "block";
+                    }
+                }
+            }
+        }
+})
+    }
+}
+
+function packetyWidget() {
+    var element;
+
+    if (typeof packetaApiKey == 'undefined') return;
+    if (packetaApiKey != "") {
+        function showSelectedPickupPoint(point) {
+            /*var spanElement = document.getElementById('packeta-point-info');*/
+            if (point) {
+                /*    var recursiveToString = function (o) {
+                     return Object.keys(o).map(
+                         function (k) {
+                             if (o[k] === null) {
+                                 return k + " = null";
+                             }
+
+                             return k + " = " + (typeof (o[k]) == "object" ?
+                                 "<ul><li>" + recursiveToString(o[k]) + "</li></ul>" :
+                                 o[k].toString().replace(/&/g, '&amp;').replace(/</g, '&lt;')
+                             );
+                         }
+                     ).join("</li><li>");
+                 };*/
+
+                /*  spanElement.innerText =
+                "Address: " + point.name + "\n" + point.zip + " " + point.city + "\n\n" +
+                "All available fields:\n";
+*/
+
+                /* spanElement.innerHTML +=
+                     "<ul><li>" + recursiveToString(point) + "</li></ul>";*/
+
+                selectbranch(element, point.id, point, true);
+
+            } else {
+            console.log(2);
+                selectbranch(element, "", "", true);
+            }
+        }
+        doc.allEl('.k2delivery').forEach(function(el){
+
+            if (el.getAttribute('data-id') == 4333622002005 || el.getAttribute('data-id') == 4333622002011 || el.getAttribute('data-id') == 4333622002007){
+                el.closest('[data-k2="deliveryItem"]').el('[data-k2="selectBranch2"]').setAttribute('name', 'k2branch');
+                el.closest('[data-k2="deliveryItem"]').el('[data-k2="selectBranch2"]').setAttribute('data-k2', 'selectBranch');
+
+                if(el.checked){
+                    doc.el('[data-k2="invoice"]').classList.remove('not_packety');
+                }
+
+
+                el.addEventListener('click', function (e) {
+                    doc.el('.k2invAsDel').checked = false;
+                    doc.el('[data-k2="invoice"]').classList.remove('not_packety');
+                console.log(4);
+                    doc.allEl('[data-k2="selectBranch"]').forEach(function(t){
+                        selectbranch(t, "");
+                    })
+                    id = this.getAttribute('data-id');
+                    if(id == 4333622002005){
+                        country = 'cz';
+                    } else if(id == 4333622002011){
+                        country = 'pl';
+                    } else if(id == 4333622002007){
+                        country = 'sk';
+                    }
+                    console.log(country);
+
+                    //this.el('[name="radio-delivery"]').trigger('change');
+                    element = this.closest('[data-k2="deliveryItem"]').el('[data-k2="selectBranch"]');
+                    this.closest('[data-k2="deliveryItem"]').el('[name="radio-delivery"]').checked = true;
+                    //element.closest('[data-k2="deliveryItem"]').el('[name="radio-delivery"]').trigger('click');
+
+                    //var country = element.getAttribute('data-country-code').toLowerCase();
+                    Packeta.Widget.pick(packetaApiKey, showSelectedPickupPoint, {
+                        country: country,
+                        language: defaultLang.toLowerCase()
+                    });
+                }, true);
+
+            } else {
+                if(el.checked){
+                    doc.el('[data-k2="invoice"]').classList.add('not_packety');
+                }
+                 el.addEventListener('click', function (e) {
+                 console.log('jina než zasilkovna - skryt fakturační');
+                 doc.el('[data-k2="invoice"]').classList.add('not_packety');
+                 if(el.getAttribute('data-id') == 4672924418052){
+                    doc.el('.k2invAsDel').checked = false;
+                 }else {
+                    doc.el('.k2invAsDel').checked = true;
+                 }
+                    doc.allEl('[data-k2="selectBranch"]').forEach(function(t){
+                        selectbranch(t, "");
+                    })
+                })
+            }
+
+            });
+
+
+
+doc.elementListner('.btn_branch_shipping', 'click', function () {
+    this.closest('[data-k2="deliveryItem"]').el('.k2delivery').click();
+})
+
+
+
+    }
+}
+
+
+
+function activeLink() { }
+
+function videoBanner() {
+  var videoEl = doc.querySelector('.video_banner')
+
+  if (videoEl) {
+    function visibleVideo(x) {
+      if (x.matches) {
+        videoEl.el('source').setAttribute('src', videoEl.el('source').getAttribute('data-src'))
+        videoEl.load();
+      }
+    }
+
+    var x = window.matchMedia("(min-width: 675px)")
+    visibleVideo(x)
+    x.addListener(visibleVideo);
+  }
+
+}
+
+function configurationDetail() {
+ var isSave = false;
+
+ 
+
+console.log(isSave);
+
+  if (window['m0playerList'] !== undefined) {
+    m0playerList.forEach(function (player) {
+      console.log(player);
+      htmlOption = '<option value="' + player.RID + '" data-number="' + player.playerNumber + '" data-name="' + player.playerName + ' ' + player.playerSurname + '">(' + player.playerNumber + ') ' + player.playerName + ' ' + player.playerSurname + '</option>';
+      doc.el('.config_list').insertAdjacentHTML('beforeend', htmlOption)
+    });
+  }
+
+  doc.el('.config_list').addEventListener('click', function (e) {
+  if(this.classList.contains('disabled')){
+    doc.el('.config_list_type').checked = true;
+    doc.el('.config_list_type').trigger('change');
+    }
+  });
+
+  doc.el('.config_list').addEventListener('change', function (e) {
+    createJson({
+      id: doc.el('.config_list').value,
+      name: doc.el('.config_list').options[doc.el('.config_list').selectedIndex].getAttribute('data-name'),
+      number: doc.el('.config_list').options[doc.el('.config_list').selectedIndex].getAttribute('data-number'),
+      customPrint: false
+    });
+  });
+
+
+  doc.allEl('.config_checkbox').forEach(function (item) {
+    item.addEventListener('change', function (e) {
+      doc.el('.config_checkbox.active').checked = false;
+      doc.el('.config_checkbox.active').classList.remove('active');
+
+      if (this.checked) {
+        this.classList.add('active');
+
+        if (this.classList.contains('config_list_type')) {
+          doc.el('.config_list').classList.remove('disabled');//.disabled = false;
+          doc.el('.config_checkbox_custom').checked = false;
+          createJson({
+            id: doc.el('.config_list').value,
+            name: doc.el('.config_list').options[doc.el('.config_list').selectedIndex].getAttribute('data-name'),
+            number: doc.el('.config_list').options[doc.el('.config_list').selectedIndex].getAttribute('data-number'),
+            customPrint: false
+          });
+        } else {
+          doc.el('.config_list').classList.add('disabled');
+          createJson("");
+          this.checked = false;
+          this.classList.remove('active');
+          popup('config_popup', this.getAttribute('data-title'), doc.el('#customConfig'));
+
+        }
+      } else {
+        if (this.classList.contains('config_list_type')) {
+            doc.el('.config_list').classList.add('disabled');
+        }
+        createJson("");
+      }
+
+    });
+  });
+
+ 
+
+
+
+  function createJson(data) {
+    var noteProduct = doc.el('.k2productBuyNote');
+    if (data == "" || data == "0") {
+      noteProduct.value = "";
+      localStorage.removeItem('dataConfig');
+      console.log(data);
+      return;
+    }
+    console.log(data);
+    noteProduct.value = JSON.stringify(data);
+    if(isSave){
+        localStorage.setItem('dataConfig', JSON.stringify(data))
+    }
+  }
+
+  if (doc.querySelector('.config_input_text')) {
+
+    doc.elementListner('.config_btn_save', 'click', function () {
+      textEl = doc.el('.config_input_text');
+      numberEl = doc.el('.config_input_number');
+      textValue = textEl.value;
+      numberValue = numberEl.value;
+
+      if (textValue != "" && numberValue != "") {
+        doc.el('.config_checkbox_custom').checked = true;
+        numberEl.classList.remove('error');
+        textEl.classList.remove('error');
+        createJson({
+          id: 0,
+          name: doc.el('.config_input_text').value,
+          number: doc.el('.config_input_number').value, // i číslo se bude tisknout?
+          customPrint: true
+        });
+        doc.el('.popup.active .js_popup_close').click();
+      } else {
+        if (numberValue == "") {
+          numberEl.classList.add('error');
+        }
+
+        if (textValue == "") {
+          textEl.classList.add('error');
+        }
+      }
+
+    });
+
+    doc.elementListner('.config_input_text', 'input', function () {
+      var value = this.value,
+        elementText = this.closest('.config_wrap').el('.config_text');
+      if (this.classList.contains('error') && value != "") {
+        this.classList.remove('error')
+      }
+      elementText.textContent = value;
+      elementText.classList.remove('text_long');
+
+      if (elementText.offsetWidth >= elementText.parentElement.offsetWidth) {
+        elementText.classList.add('text_long');
+      }
+
+    });
+
+    doc.elementListner('.config_input_number', 'keydown', function (event) {
+      this.value = this.value.replace(/[^0-9]/, '');
+    })
+
+    doc.elementListner('.config_input_number', 'input', function (e) {
+      var value = this.value,
+        elementNumber = this.closest('.config_wrap').el('.config_number');
+      this.value = value.replace(/[^0-9]/, '');
+      value = this.value;
+
+      if (this.classList.contains('error') && value != "") {
+        this.classList.remove('error');
+      }
+
+      elementNumber.textContent = value;
+    });
+  }
+
+    if(window['dataForConfig']){
+    console.warn(dataForConfig);
+    if(dataForConfig.isMaster == "1"){
+        console.log(dataForConfig.ID);
+
+        if(localStorage.getItem('parentId') == dataForConfig.ID){
+            console.warn('load data')
+            loadDataConfig();
+        } else {
+            console.warn('removeData');
+            localStorage.removeItem('dataConfig');
+            localStorage.setItem('parentId', dataForConfig.ID);
+        }
+        isSave = true;
+    } else {
+        console.log(dataForConfig.parentID);
+        if(localStorage.getItem('parentId') == dataForConfig.parentID){
+            console.warn('load data')
+            loadDataConfig();
+        } else {
+            console.warn('removeData');
+            localStorage.removeItem('dataConfig');
+            localStorage.setItem('parentId', dataForConfig.parentID);
+        }
+        isSave = true;
+    }
+  } else {
+    localStorage.removeItem('parentId');
+    localStorage.removeItem('dataConfig');
+    isSave = false;
+  }
+
+function loadDataConfig(){
+    var dataConfig = JSON.parse(localStorage.getItem('dataConfig'));
+
+    if(dataConfig !== null){
+        if(dataConfig.customPrint){
+            /*doc.el('.config_checkbox_custom').checked = true;
+            doc.el('.config_checkbox_custom').trigger('change');*/
+            doc.el('.config_input_number').value = dataConfig.number;
+            doc.el('.config_input_number').trigger('input');
+            doc.el('.config_input_text').value = dataConfig.name;
+            doc.el('.config_input_text').trigger('input');
+            doc.el('.config_btn_save').click();
+        } else {
+            doc.el('.config_list_type').checked = true;
+            doc.el('.config_list_type').trigger('change');
+            doc.el('.config_list').value = dataConfig.id;
+            doc.el('.config_list').trigger('change');
+        }
+        console.log(dataConfig);
+    }
+}
+
+
+}
+
+function activeLinkSpecial() {
+  var linkEl;
+  var breadcrumbLastEL = document.querySelector('.breadcrumb_wrap'); //.href
+
+  if (!!breadcrumbLastEL) {
+    var urlHref = breadcrumbLastEL.querySelector('[data-k2="itemLast"] a').href
+    if (doc.querySelector('.variant_item')) {
+      var urlVariant = urlHref.split("/");
+      urlVariant = '/' + urlVariant[urlVariant.length - 1];
+      doc.el('.variant_item[href$="' + urlVariant + '"]').classList.add('active');
+    }
+
+    if (urlHref.indexOf("_p") == -1) {
+      var url = urlHref.split("/");
+    } else {
+      var url = breadcrumbLastEL.querySelector('[data-k2="itemLast"]').previousElementSibling.querySelector('a').href.split("/");
+    }
+
+    url = '/' + url[url.length - 1];
+  } else {
+    console.warn("Breadcrumbs not found");
+    var url = location.pathname.split("/");
+    if (doc.querySelector('.variant_item')) {
+      var urlVariant = url.split("/");
+      urlVariant = '/' + urlVariant[urlVariant.length - 1];
+      doc.el('.variant_item[href$="' + urlVariant + '"]').classList.add('active');
+    }
+
+    if (location.pathname.indexOf("_p") == -1) {
+      url = '/' + url[url.length - 1];
+    } else {
+      url = '/' + url[url.length - 2];
+    }
+  }
+
+  linkEl = document.querySelectorAll('.set_active a[href$="' + url + '"]:not([href^="https"]):not([href^="http"])');
+
+  linkEl.forEach(function (t) {
+    console.log(t);
+    parent = t.closest('ul');
+    t.classList.add('active');
+
+    if (t.closest('li').querySelector('.js_toggle')) {
+      t.closest('li').querySelector('.js_toggle').click();
+    }
+
+    if (!t.isVisible() && !!parent) {
+      yy = t.closest('ul').closest('li');
+      while (yy !== null) {
+        if (yy.querySelector('.js_toggle')) {
+          yy.querySelector('.js_toggle').click();
+        }
+        yy = yy.closest('ul').closest('li');
+      }
+    }
+
+  });
+}

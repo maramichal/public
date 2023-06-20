@@ -1,0 +1,11 @@
+<svg id="osobní_odběr" data-name="osobní odběr" xmlns="http://www.w3.org/2000/svg" width="55.5" height="55" viewBox="0 0 55.5 55">
+  <circle id="Ellipse_49" data-name="Ellipse 49" cx="27.5" cy="27.5" r="27.5" transform="translate(0.5)" fill="#ebf4ff"/>
+  <g id="ikona_krabice" data-name="ikona krabice" transform="translate(-172 -436.643)">
+    <g id="archive" transform="translate(172 444)">
+      <path id="Vector" d="M24.455,23.042H7.193C.863,23.042,0,19.919,0,16.535V1.3A1.385,1.385,0,0,1,1.439,0,1.385,1.385,0,0,1,2.877,1.3V16.535c0,3.019.575,3.9,4.316,3.9H24.455c3.74,0,4.316-.885,4.316-3.9V1.3a1.446,1.446,0,0,1,2.877,0V16.535C31.648,19.919,30.785,23.042,24.455,23.042Z" transform="translate(6.507 18.074)" fill="#046aeb"/>
+      <path id="Vector-2" data-name="Vector" d="M33.29,16.483H7.033C2.494,16.483,0,14.176,0,9.977V6.507C0,2.308,2.494,0,7.033,0H33.29c4.539,0,7.033,2.308,7.033,6.507v3.47C40.324,14.176,37.829,16.483,33.29,16.483ZM7.033,2.6c-2.963,0-4.22,1.163-4.22,3.9v3.47c0,2.741,1.257,3.9,4.22,3.9H33.29c2.963,0,4.22-1.163,4.22-3.9V6.507c0-2.741-1.257-3.9-4.22-3.9Z" transform="translate(2.169 2.169)" fill="#046aeb"/>
+      <path id="Vector-3" data-name="Vector" d="M7.617,2.6H1.3A1.311,1.311,0,0,1,0,1.3,1.311,1.311,0,0,1,1.3,0H7.617a1.311,1.311,0,0,1,1.3,1.3A1.311,1.311,0,0,1,7.617,2.6Z" transform="translate(17.872 23.957)" fill="#046aeb"/>
+      <path id="Vector-4" data-name="Vector" d="M0,0H44.661V43.285H0Z" fill="none" opacity="0"/>
+    </g>
+  </g>
+</svg>

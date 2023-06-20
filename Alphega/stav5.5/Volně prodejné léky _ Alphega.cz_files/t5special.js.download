@@ -1,0 +1,100 @@
+(function (window) {
+    var post = x(currentExecutingScript());
+    console.log('[t5special]');
+    var inAction = false;
+    var ajaxRequests = new Array();
+    var popupWrap = '<div class="popup hide" id="paymentConfirmationPopup"><div class="popup_bg popup_close_payment"></div><div class="popup_wrap spacing"><button class="ico ico-close popup_close_payment"><svg class="ico ico-close"><use xlink:href="#ico-close"></use></svg></button></div></div>';
+    // var popupBody = '<div><h3>Potvrzení platby kartou</h3><p>Při vyzvednutí Vaší zásilky na lékárně lze platit pouze platební kartou, nikoliv v hotovosti.</p><button class="popup_close_payment more_btn">ZMĚNIT TYP PLATBY</button><button class="paymentConfirmationBtn btn_normal">BERU NAVĚDOMÍ</button></div>';
+    var popupBody = '<div><h3>Platba kartou v lékárně</h3><p>Tuto možnost platby pro Vás připravujeme.</p><button class="popup_close_payment more_btn">ZMĚNIT TYP PLATBY</button><button class="paymentConfirmationBtn btn_normal">BERU NAVĚDOMÍ</button></div>';
+
+  
+    $(document).on('click', '.k2fx5shipping [data-id="4453881086692"] .radio_wrap,.k2fx5shipping [data-id="4939212391994"] .radio_wrap', function (e) {
+      //e.preventDefault();
+      cardPaymentConfirmation($(this).parent().parent());
+    });
+  
+    function cardPaymentConfirmation(btn) {
+
+        // check if shipping is set to 'personal at pharmacy'
+        if (btn.is('[data-id="4453881086692"]') && ! $('.k2fx5shipping .shipping_item.active').is('[data-id~="4939212391994"]') ) {
+            console.log("not OSOD");
+            return;
+        }
+
+        if (btn.is('[data-id="4939212391994"]') && ! $('.k2fx5shipping .shipping_item.active').is('[data-id~="4453881086692"]')) {
+            console.log("not Dobirka");
+            return;
+        }
+
+        if (ajaxRequests[ajaxRequests.length - 1]) {
+            ajaxRequests[ajaxRequests.length - 1].abort();
+        }
+        inAction = true;
+    
+        if ($(document).find("#paymentConfirmationPopup")) {
+            $("#paymentConfirmationPopup").remove();
+        }
+        $('body').append(popupWrap);
+        $('.popup').css('opacity', '1');
+        $('.popup').addClass('active');
+        $('.popup_wrap').show().append(popupBody);
+    }
+
+    $(document).on('click', '#paymentConfirmationPopup .paymentConfirmationBtn', function(e) {
+        e.preventDefault();
+        acceptPaymentMethod($(this));
+    });
+
+    function acceptPaymentMethod(btn) {
+        var currentdate = new Date();
+        var datetime =  currentdate.getDate() + "."
+                + (currentdate.getMonth()+1)  + "." 
+                + currentdate.getFullYear() + " "  
+                + currentdate.getHours() + ":"  
+                + currentdate.getMinutes() + ":"
+                + currentdate.getSeconds();
+        $('.k2fx5address [name="k2wdPaymentConfirmation"]').val(datetime);
+
+        console.log("Now:" + $('.k2fx5address [name="k2wdPaymentConfirmation"]').val());
+        hidePaymentConfirmation(true);
+        
+        
+        // var _modul = 'k2fx5shipping';
+        // var _action = 'checkPayment';
+
+        // $(document).trigger('k2trigger', [{modul: _modul, post: 'start', action: _action}]);
+
+        // ajaxRequests[ajaxRequests.length] = $.post(post, {
+        //     l: 1001
+        // }, function (data) {
+        //     console.log('DATA = ' + data);
+        //     var d = tryParseJSON(data);
+        //     if (typeof d === 'object' && d.fail == false) {
+        //         $(document).trigger('k2trigger', [{modul: _modul, post: 'end', action: _action, fail: false, msg: []}]);
+        //         hidePaymentConfirmation(true);
+
+        //     } else {
+        //         $(document).trigger('k2trigger', [{modul: _modul, post: 'end', action: _action, fail: true, msg: d.msg}]);
+        //         hidePaymentConfirmation();
+        //     }
+        //     inAction = false;
+        // }); //endpost       
+    }
+    
+
+    $(document).on('click', '.popup_close_payment', function(e) {
+        e.preventDefault();
+        hidePaymentConfirmation();
+    });
+
+    function hidePaymentConfirmation(confirmed=false) {
+        $("#paymentConfirmationPopup").remove();
+        if (!confirmed) {
+            // $('.k2fx5shipping [data-id="4299262265376"]').click();
+            $('.k2fx5shipping [data-id="4299262265376"] .k2payment').prop("checked", true);
+            $('.k2fx5shipping [data-id="4299262265376"] .k2payment').click();//prop("checked", true);
+        }
+    }
+  
+  })();
+  

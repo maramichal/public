@@ -1,0 +1,135 @@
+var k2ajaxVar = null;
+var k2ajaxInit = false;
+var k2ajaxLoader = '<div class="k2ajaxLoadingBar"><div class="k2ajaxLoader"></div></div>' + '<style> .k2ajaxLoadingBar{position:relative; width: 100%; height: 0;} .k2ajaxLoadingBar .k2ajaxLoader { position:absolute; transition: all 0.3s ease; z-index: 99999; top:0; left: 0; width:100%; height:0; background:#e1ecf9; overflow:hidden; } .k2ajaxLoadingBar div:before { content:""; position:absolute; top:0px; left:0px; bottom:0px; background:#384fd9; animation:box-1 2100ms cubic-bezier(0.65,0.81,0.73,0.4) infinite; } .k2ajaxLoadingBar div:after { content:""; position:absolute; top:0px; left:0px; bottom:0px; background:#384fd9; animation:box-2 2100ms cubic-bezier(0.16,0.84,0.44,1) infinite; animation-delay:1150ms; } @keyframes box-1 { 0% { left:-35%; right:100%; } 60%,100% { left:100%; right:-90%; } } @keyframes box-2 { 0% { left:-200%; right:100%; } 60%,100% { left:107%; right:-8%; } } </style>';
+
+//k2ajaxLoaderEl misto kam se prida loader;
+if(k2ajaxLoaderEl == null) var k2ajaxLoaderEl = "body";
+document.querySelector(k2ajaxLoaderEl).innerHTML = k2ajaxLoader + document.querySelector(k2ajaxLoaderEl).innerHTML;
+
+//Posluchač pro klik na .k2ajax
+document.addEventListener("click",function(e){
+    var el = e.target.closest(".k2ajax");
+    var state = el && el.hasAttribute("href") && el.hasAttribute("data-ajax-id");
+    if(state){
+        e.preventDefault();
+        k2ajax(el.getAttribute("href"), el.getAttribute("data-ajax-id"), (el.hasAttribute("data-ajax-callback")) ?el.getAttribute("data-ajax-callback") :null, true, (el.hasAttribute("data-ajax-scrollTo")) ?el.getAttribute("data-ajax-scrollTo") :0)
+    } 
+});
+
+//Posluchač pro listování historii
+window.addEventListener('popstate', function (event) {
+    if(k2ajaxVar != null)
+    k2ajaxVar.abort();
+    if(event.state != null)
+    if(event.state.k2ax == true){
+        k2ajax(window.location.href, event.state.id, event.state.callback, false, event.state.scrollTo);
+    }
+});
+
+
+function k2ajax(href, id, callback = null, pushHistory = true, scrollTo = 0){
+
+    if(k2ajaxVar != null)
+    k2ajaxVar.abort();
+    else
+    k2ajaxVar = new XMLHttpRequest;
+
+
+    //Přepíše záznam v historii kvůli listování(async) (back/go)
+    if(k2ajaxInit == false){
+        window.history.replaceState({k2ax:true, href: window.location.href, id:id, callback:callback}, "");
+        k2ajaxInit = true;
+    }
+
+    k2ajaxVar.onreadystatechange = function() {
+        if (this.readyState == 1){
+            k2ajaxLoading(1);
+        }
+        if (this.readyState == 4 && this.status == 200) {
+            var data;
+            try {
+                data = JSON.parse(k2ajaxVar.response);
+            } catch (e) {
+                console.log(e);
+                location.href = href;
+            }
+
+            console.log(data);
+
+
+            //Pokud nějaký prvek nenajde, mělo by to refreshnout celou stránku? jinak se nezmění obsah
+            try{
+                for (let element in data) {
+                    if(data[element] != null && element != 'vars'){
+                        document.querySelectorAll("#" + element).forEach(function(el){
+                            el.innerHTML= data[element];
+                        });
+                    }
+                };
+            } catch(e){
+                console.log(e);
+                location.href = href;
+            }
+
+            //Přepíše Title stránky
+            if(data.vars != null){
+                document.title = data.vars["{seo::title}"];
+                document.querySelector('meta[name="robots"]').setAttribute("content", data.vars["{seo::robots}"]);
+                document.querySelector('meta[name="description"]').setAttribute("content", data.vars["{seo::description}"]);
+                document.querySelector('meta[name="keywords"]').setAttribute("content", data.vars["{seo::keywords}"]);
+                document.querySelector('html[lang]').setAttribute("lang", data.vars["{seo::langA2}"]);
+            }
+            if(pushHistory) 
+            window.history.pushState({k2ax:true, href: href, id:id, callback:callback, scrollTo: scrollTo}, "", href);
+            
+
+
+            //Volání callback funkcí
+            if(callback != null){
+                var x = []; //Pokud není ve stringu ',', split by vrátil string a nefungoval by foreach
+                callback.replace(' ','');
+                x = callback.split(",");
+                x.forEach(function(fce){
+                    if(typeof window[fce] === 'function'){
+                        window[fce]();
+                    }
+                });
+            }
+
+            k2ajaxLoading(0);
+
+            //ScrollTo top of element - k2axFixedHeader
+            if(scrollTo == 0 || !document.querySelector(scrollTo)){
+                document.body.scrollTop = document.documentElement.scrollTop = 0;
+            }
+            else{
+                var fixedHeader = document.querySelector(".k2axFixedHeader");
+                if(fixedHeader) fixedHeader = fixedHeader.offsetHeight;
+                else fixedHeader = 0;
+                document.body.scrollTop = document.documentElement.scrollTop = document.querySelector(scrollTo).getBoundingClientRect().top + document.documentElement.scrollTop - fixedHeader;
+            }
+
+            window.dispatchEvent(new Event('resize'));
+        } else if(this.readyState == 4 && this.status != 0) {
+            location.href = href;
+        }
+    };
+
+    if(href.split('?')[0] == ''){
+        href= location.protocol + '//' + location.host + location.pathname + href;
+    }
+    var link = href + (href.split('?')[1] ? '&':'?') + "k2ax=" + id;
+
+    k2ajaxVar.open("GET", link, true);
+    k2ajaxVar.send();
+}
+
+function k2ajaxLoading(state){
+    if(state == 1 || !document.querySelector(".k2ajaxLoadingBar .k2ajaxLoader").classList.contains("active")){
+        document.querySelector(".k2ajaxLoadingBar .k2ajaxLoader").classList.add("active");
+        document.querySelector(".k2ajaxLoadingBar .k2ajaxLoader").style.height = '4px';
+    } else{
+        document.querySelector(".k2ajaxLoadingBar .k2ajaxLoader").classList.remove("active");
+        document.querySelector(".k2ajaxLoadingBar .k2ajaxLoader").style.height = '0px';
+    }
+}

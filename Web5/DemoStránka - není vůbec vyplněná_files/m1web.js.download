@@ -1,0 +1,525 @@
+
+window.k2m1 = (function () {
+  var post = x(currentExecutingScript());
+  var inAction = false;
+  setInterval(function () { $.post(post, { l: 0 }, function () { }) }, 654321);
+
+  window.addEventListener('load', function () {
+    var a = document.getElementsByTagName("body")[0].getAttribute("data-k2-timing");
+    if (performance && performance.timing) {
+      var performanceTiming = performance.timing;
+      var b = performanceTiming.responseStart - performanceTiming.requestStart;
+      var c = performanceTiming.domComplete - performanceTiming.requestStart;
+      console.log('TTFB=' + b);
+      console.log('load=' + c);
+      $.post(post, { l: 7, a: a, b: b, c: c });
+    }
+  })
+
+  $(document).on('click', '.k2fx1newsletterRegister .k2send', function (e) {
+    e.preventDefault();
+    newsletterRegister($(this));
+  });
+
+  function newsletterRegister(btn) {
+    var _modul = 'k2fx1newsletterRegister';
+    var _action = 'save';
+    var fce = btn.closest('.' + _modul);
+    if (fce.length) {
+      fce.find('.k2msg').hide();
+      var check = checkInputs(fce, 0);
+      var isValid = check.isValid;
+      if (check.msg.length) {
+        $(document).trigger('k2trigger', [{ modul: _modul, state: '', action: _action, fail: true, msg: check.msg }]);
+      }
+      if (!inAction && isValid) {
+        var inputs = getInputs(fce);
+        //console.log(inputs);
+        inputs = JSON.stringify(inputs);
+        inAction = true;
+        $(document).trigger('k2trigger', [{ modul: _modul, state: 'start', action: _action }]);
+        $.post(post, {
+          l: 5,
+          inputs: inputs
+        }, function (data) {
+          //console.log('DATA = ' + data);
+          var d = tryParseJSON(data);
+          if (typeof d === 'object') {
+            //console.log(d);
+            if (!d.fail) {
+              //console.log('ok');
+              k2msg = '.k2msg1';
+              fce.find(k2msg).show();
+              $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: false, msg: [k2msg] }]);
+              fce.find('.k2email').val('');
+            } else {
+              k2msg = '.k2msg2';
+              fce.find(k2msg).show();
+              console.log('failed');
+              console.log(d);
+              $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: true, msg: [k2msg] }]);
+            }
+          }
+          inAction = false;
+        });
+      }
+    }
+  }
+
+  $(document).on('click', '.k2fx1newsletterSubscribe .k2btnUnsubscribe', function (e) {
+    e.preventDefault();
+    newsletterUnsubscribe($(this));
+  });
+
+  function newsletterUnsubscribe(btn) {
+    var _modul = 'k2fx1newsletterSubscribe';
+    var _action = 'save';
+    var fce = btn.closest('.' + _modul);
+    if (fce.length) {
+      fce.find('.k2msg').hide();
+      var check = checkInputs(fce, 0);
+      var isValid = check.isValid;
+      if (check.msg.length) {
+        $(document).trigger('k2trigger', [{ modul: _modul, state: '', action: _action, fail: true, msg: check.msg }]);
+      }
+      if (!inAction && isValid) {
+        var inputs = getInputs(fce);
+        //console.log(inputs);
+        inputs = JSON.stringify(inputs);
+        inAction = true;
+        $(document).trigger('k2trigger', [{ modul: _modul, state: 'start', action: _action }]);
+        $.post(post, {
+          l: 6,
+          inputs: inputs
+        }, function (data) {
+          console.log('DATA = ' + data);
+          var d = tryParseJSON(data);
+          if (typeof d === 'object') {
+            //console.log(d);
+            if (!d.fail) {
+              //console.log('ok');
+              k2msg = '.k2msg1';
+              fce.find(k2msg).show();
+              $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: false, msg: [k2msg] }]);
+              fce.find('.k2email').val('');
+            } else {
+              k2msg = '.k2msg2';
+              fce.find(k2msg).show();
+              console.log('failed');
+              console.log(d);
+              $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: true, msg: [k2msg] }]);
+            }
+          }
+          inAction = false;
+        });
+      }
+    }
+  }
+
+  $(document).on('click', '.k2fx1askUs .k2send', function (e) {
+    e.preventDefault();
+    askUs($(this));
+  });
+
+  function askUs(btn) {
+    var _modul = 'k2fx1askUs';
+    var _action = 'save';
+    var fce = btn.closest('.' + _modul);
+    if (fce.length) {
+      var type = btn.attr('data-k2-type');
+      fce.find('.k2msg').hide();
+      var check = checkInputs(fce, 0);
+      var isValid = check.isValid;
+      if (check.msg.length) {
+        $(document).trigger('k2trigger', [{ modul: _modul, state: '', action: _action, fail: true, msg: check.msg }]);
+      }
+      if (!inAction && isValid) {
+        var inputs = getInputs(fce);
+        //console.log(inputs);
+        inputs = JSON.stringify(inputs);
+        inAction = true;
+        $(document).trigger('k2trigger', [{ modul: _modul, state: 'start', action: _action }]);
+        $.post(post, {
+          l: 4,
+          type: type,
+          inputs: inputs
+        }, function (data) {
+          //console.log('DATA = ' + data);
+          var d = tryParseJSON(data);
+          if (typeof d === 'object') {
+            //console.log(d);
+            if (!d.fail) {
+              //console.log('pridano');
+              k2msg = '.k2msg1';
+              fce.find(k2msg).show();
+              $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: false, msg: [k2msg] }]);
+              fce.find('.k2txt').val('');
+            } else {
+              console.log('failed');
+              console.log(d);
+              $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: true, msg: [] }]);
+            }
+          }
+          inAction = false;
+        });
+      }
+    }
+  }
+
+  $(document).on('click', '.k2watchdog .k2btnWatchdogAdd', function (e) {
+    e.preventDefault();
+    watchdogAdd($(this));
+  });
+
+  $(document).on('click', '.k2watchdogItem .k2btnWatchdogDel', function (e) {
+    e.preventDefault();
+    watchdogDel($(this));
+  });
+
+  function watchdogAdd(btn) {
+    var _modul = 'k2watchdog';
+    var _action = 'add';
+    var ID = btn.attr('data-k2-id');
+    var k2item = btn.closest('.k2watchdog');
+    var price = k2item.find('.k2watchdogPrice').val();
+    var avail = +k2item.find('.k2watchdogAvailability').is(':checked');
+    var k2email = k2item.find('.k2watchdogEmail');
+    var email = k2email.val();
+    k2item.find('.k2msg').hide();
+    if (k2email.length && !isValidEmail(email)) {
+      ID = 0; //fail
+      k2msg = '.k2msg3';
+      k2item.find(k2msg).show();
+      $(document).trigger('k2trigger', [{ modul: _modul, state: 'fail', action: _action, fail: true, msg: [k2msg], el: k2email }]); //zobrazit hlasku o spatnem emailu
+    }
+    if (!inAction && ID) {
+      inAction = true;
+      $(document).trigger('k2trigger', [{ modul: _modul, state: 'start', action: _action }]);
+      $.post(post, {
+        l: 8,
+        ID: ID,
+        price: price,
+        avail: avail,
+        email: email
+      }, function (data) {
+        //console.log('DATA = ' + data);
+        var d = tryParseJSON(data);
+        if (typeof d === 'object') {
+          if (!d.fail) {
+            //console.log('pridano');
+            k2msg = '.k2msg1';
+            k2item.find(k2msg).show();
+            $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: false, msg: [k2msg] }]);
+            k2item.find('.k2btnWatchdogEdit').removeClass('k2hidden');
+            k2item.attr('data-k2-is', d.newState);
+            btn.attr('data-k2-id', d.id);
+          } else {
+            k2msg = '.k2msg2';
+            k2item.find(k2msg).show();
+            console.log('failed');
+            console.log(d);
+            $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: true, msg: [k2msg] }]);
+          }
+        }
+        inAction = false;
+      });
+    } else {
+      console.log('block');
+    }
+  }
+
+  function watchdogDel(btn) {
+    var _modul = 'k2watchdog';
+    var _action = 'del';
+    var ID = btn.attr('data-k2-id');
+    var k2item = btn.closest('.k2watchdogItem');
+    if (!inAction && ID) {
+      inAction = true;
+      $(document).trigger('k2trigger', [{ modul: _modul, state: 'start', action: _action }]);
+      $.post(post, {
+        l: 9,
+        ID: ID
+      }, function (data) {
+        console.log('DATA = ' + data);
+        var d = tryParseJSON(data);
+        if (typeof d === 'object') {
+          //console.log(d);
+          if (!d.fail) {
+            //console.log('odebrano');
+            $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: false, msg: [] }]);
+            k2item.remove();
+          } else {
+            console.log('failed');
+            $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: true, msg: [] }]);
+          }
+        }
+        inAction = false;
+      });
+    }
+  }
+
+  /*function watchdogEdit(btn) {
+    var _modul = 'k2watchdog';
+    var _action = 'edit';
+    var ID = btn.attr('data-k2-id');
+    var crc = btn.attr('data-k2-crc');
+    var k2item = btn.closest('.k2watchdog');
+    if (!inAction && ID && crc) {
+      inAction = true;
+      $(document).trigger('k2trigger', [{ modul: _modul, state: 'start', action: _action }]);
+      $.post(post, {
+        l: 10,
+        ID: ID,
+        crc: crc
+      }, function (data) {
+        //console.log('DATA = ' + data);
+        var d = tryParseJSON(data);
+        if (typeof d === 'object') {
+          //console.log(d);
+          if (!d.fail) {
+            $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: false, msg: [] }]);
+            k2item.find('[data-k2="containerDog"]').replaceWith(d.html).removeClass('k2hidden');
+          } else {
+            console.log('failed');
+            console.log(d);
+            $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: true, msg: [] }]);
+          }
+        }
+        inAction = false;
+      });
+    }
+  }*/
+
+  $(document).on('click', '.k2favorite .k2btnFavoriteAdd', function (e) {
+    e.preventDefault();
+    favoriteAdd($(this));
+  });
+
+  $(document).on('click', '.k2favorite .k2btnFavoriteDel', function (e) {
+    e.preventDefault();
+    favoriteDel($(this));
+  });
+
+  $(document).on('click', '.k2fx1favorites .k2btnFavoriteDel', function (e) {
+    e.preventDefault();
+    favoriteListDel($(this));
+  });
+
+  function favoriteAdd(btn) {
+    var _modul = 'k2favorite';
+    var _action = 'add';
+    var ID = btn.attr('data-k2-id');
+    var k2item = btn.closest('.k2favorite');
+    var txt = k2item.find('.k2favoriteText').val();
+    if (!inAction && ID) {
+      inAction = true;
+      $(document).trigger('k2trigger', [{ modul: _modul, state: 'start', action: _action }]);
+      $.post(post, {
+        l: 1,
+        ID: ID,
+        txt: txt
+      }, function (data) {
+        //console.log('DATA = ' + data);
+        var d = tryParseJSON(data);
+        if (typeof d === 'object') {
+          //console.log(d);
+          if (!d.fail) {
+            //console.log('pridano');
+            $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: false, msg: [] }]);
+            k2item.find('.k2btnFavoriteAdd,.k2favoriteN').addClass('k2hidden');
+            k2item.find('.k2btnFavoriteDel,.k2favoriteY').removeClass('k2hidden').attr('data-k2-id', d.rid);
+          } else {
+            console.log('failed');
+            $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: true, msg: [] }]);
+          }
+        }
+        inAction = false;
+      });
+    }
+  }
+
+  function favoriteDel(btn) {
+    var _modul = 'k2favorite';
+    var _action = 'del';
+    var ID = btn.attr('data-k2-id');
+    var k2item = btn.closest('.k2favorite');
+    if (!inAction && ID) {
+      inAction = true;
+      $(document).trigger('k2trigger', [{ modul: _modul, state: 'start', action: _action }]);
+      $.post(post, {
+        l: 2,
+        ID: ID
+      }, function (data) {
+        //console.log('DATA = ' + data);
+        var d = tryParseJSON(data);
+        if (typeof d === 'object') {
+          //console.log(d);
+          if (!d.fail) {
+            //console.log('odebrano');
+            $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: false, msg: [] }]);
+            k2item.find('.k2btnFavoriteDel,.k2favoriteY').addClass('k2hidden').attr('data-k2-id', d.rid);
+            k2item.find('.k2btnFavoriteAdd,.k2favoriteN').removeClass('k2hidden');
+          } else {
+            console.log('failed');
+            $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: true, msg: [] }]);
+          }
+        }
+        inAction = false;
+      });
+    }
+  }
+
+  function favoriteListDel(btn) {
+    var _modul = 'k2fx1favorites';
+    var _action = 'del';
+    var ID = btn.attr('data-k2-id');
+    var k2item = btn.closest('.k2item');
+    var count = k2item.closest('.k2container').find('.k2item').length;
+    if (!inAction && ID) {
+      inAction = true;
+      $(document).trigger('k2trigger', [{ modul: _modul, state: 'start', action: _action }]);
+      $.post(post, {
+        l: 3,
+        ID: ID
+      }, function (data) {
+        //console.log('DATA = ' + data);
+        var d = tryParseJSON(data);
+        if (typeof d === 'object') {
+          //console.log(d);
+          if (!d.fail) {
+            $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: false, msg: [] }]);
+            var count = k2item.closest('.k2container').find('.k2item').length;
+            $.when(k2item.remove()).then(console.log('count=' + count));
+
+          } else {
+            console.log('failed');
+            console.log(d);
+            $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: true, msg: [] }]);
+          }
+        }
+        inAction = false;
+      });
+    }
+  }
+
+  function captcha(btn, callback) {
+    if (btn.hasClass('k2captcha3')) {
+      console.log('isCaptcha');
+      var _modul = 'k2fx1captcha';
+      var _action = 'verify';
+      var pkey = $('body').attr('data-k2-pkey');
+      //console.log('pkey=' + pkey);
+      if (!inAction && pkey) {
+        grecaptcha.execute(pkey, { action: _action }).then(function (token) {
+          //console.log(token);
+          $.post(post, {
+            l: 11,
+            token: token
+          }, function (data) {
+            //console.log('DATA = ' + data);
+            var d = tryParseJSON(data);
+            if (typeof d === 'object') {
+              //console.log(d);
+              if (!d.fail) {
+                $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: false, msg: [], data: { score: d.score } }]);
+                console.log('captcha 1');
+                callback(btn);
+              } else {
+                console.log(d);
+                $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: true, msg: [] }]);
+                console.log('captcha 0');
+              }
+            }
+            inAction = false;
+          });
+        });
+      }
+    } else if (btn.hasClass('k2captcha2')) {
+      //captcha2(btn, callback);
+    } else {
+      console.log('noCaptcha');
+      callback(btn);
+    }
+  }
+
+  //k2m1.captcha2(token,btn, k2m2.tryRegister);
+  function captcha2(token, btn, callback) {
+    if (btn.hasClass('k2captcha2')) {
+      console.log('isCaptcha');
+      var _modul = 'k2fx1captcha2';
+      var _action = 'verify';
+      if (!inAction) {
+        $.post(post, {
+          l: 11,
+          token: token
+        }, function (data) {
+          console.log('DATA = ' + data);
+          var d = tryParseJSON(data);
+          if (typeof d === 'object') {
+            console.log(d);
+            if (!d.fail) {
+              $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: false, msg: [] }]);
+              console.log('captcha2 1');
+              callback(btn);
+            } else {
+              console.log(d);
+              $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: _action, fail: true, msg: [] }]);
+              console.log('captcha2 0');
+            }
+          }
+          inAction = false;
+        });
+        //});
+      }
+    } else {
+      console.log('noCaptcha2');
+      callback(btn);
+    }
+  }
+
+  function editableGetImagePath(relative) {
+    _modul = 'editableGetImagePath';
+    if (!inAction) {
+      inAction = true;
+      $(document).trigger('k2trigger', [{ modul: _modul, state: 'start', action: 'load' }]);
+      $.post(post, {
+        l: 12,
+        relative: relative
+      }, function (data) {
+        //console.log('DATA = ' + data);
+        var d = tryParseJSON(data);
+        if (typeof d === 'object') {
+          //console.log(d);
+          if (d.absolute) {
+            $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: 'load', fail: false, data: d.absolute }]);
+          } else {
+            $(document).trigger('k2trigger', [{ modul: _modul, state: 'end', action: 'load', fail: true, data: null }]);
+          }
+        }
+        inAction = false;
+      });
+    }
+  }
+
+  return {
+    captcha: captcha,
+    captcha2: captcha2,
+    editableGetImagePath: editableGetImagePath
+  };
+  ////////////////////////////////////////////////////////////////////////////////
+})();///////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+/*
+////////////////////////////////////////////////////////////////////////////////
+(function(){ var post=x(document.getElementsByTagName("script")); //////////////
+////////////////////////////////////////////////////////////////////////////////
+console.log('[m0modul]');
+$.post(post,{
+  l:1
+},function(data){
+  console.log('DATA = '+data);
+}); //endpost
+////////////////////////////////////////////////////////////////////////////////
+})();///////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+*/

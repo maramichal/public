@@ -1,0 +1,119 @@
+window.k2m5address = (function () {
+    //console.log('k2m5address');
+    var post = x(currentExecutingScript());
+    var parent = '';
+    var ajaxRequests = new Array();
+    $(document).on('keyup', '.k2fx5whisper .k2city.k2whisper', function (e) {
+        addressWhisper($(this), 1);
+    });
+    $(document).on('keyup', '.k2fx5whisper .k2street.k2whisper', function (e) {
+        addressWhisper($(this), 2);
+    });
+    $(document).on('keyup', '.k2fx5whisper  .k2ZIP.k2whisper', function (e) {
+        addressWhisper($(this), 3);
+    });
+    $(document).on('focusin', '.k2fx5whisper  .k2whisper', function (e) {
+        parent = $(this).closest('form');
+        ;
+    });
+		
+    $(document).ready(function() {
+        checkWhisper();
+    });
+    
+    function checkWhisper() {
+        if(!$('.k2tx5addressWhisper').length) {
+            $('.k2whisper').removeClass('k2whisper');
+        }
+    }
+		
+    function addressWhisper(txt, type) {
+        //console.log('Whisper');
+        var city = '';
+        var street = '';
+        var ZIP = '';
+        parent = txt.closest('form');
+
+        if (ajaxRequests[ajaxRequests.length - 1]) {
+            ajaxRequests[ajaxRequests.length - 1].abort();
+        }
+
+        if (type == 1) {
+            city = txt.val();
+        }
+        if (type == 2) {
+            street = txt.val();
+            ZIP = parent.find('.k2ZIP').val();
+            city = parent.find('.k2city').val();
+        }
+        if (type == 3) {
+            ZIP = txt.val();
+        }
+
+        ajaxRequests[ajaxRequests.length] = $.post(post, {
+            l: 52,
+            city: city,
+            street: street,
+            ZIP: ZIP
+
+        }).done(function (data) {
+            var d = tryParseJSON(data);
+            if (typeof d === 'object') {
+                var s = JSON.stringify(d.msg);
+                addressWhisperRefresh(s);
+            }
+        });
+    }
+
+    function addressWhisperRefresh(whisper) {
+        //console.log('refresh Whisper');
+        var _modul = 'k2tx5addressWhisper';
+        var _action = 'reload';
+        var fce = $('.' + _modul);
+        var crc = fce.attr('data-k2-crc');
+
+        if (fce.length && crc) {
+            $(document).trigger('k2trigger', [{modul: _modul, state: 'start', action: _action}]);
+            $.post(post, {
+                l: 53,
+                crc: crc,
+                whisper: whisper
+            }, function (data) {
+
+                var d = tryParseJSON(data);
+                if (typeof d === 'object' && d.ok == true) {
+                    fce.replaceWith(d.html);
+                    fce = $('.' + _modul);
+
+                    $(document).trigger('k2trigger', [{modul: _modul, state: 'end', action: _action, fail: false, msg: [], action: d.action}]);
+                } else {
+
+                    $(document).trigger('k2trigger', [{modul: _modul, state: 'end', action: _action, fail: true, msg: []}]);
+                }
+            });
+        }
+    }
+
+    $(document).on('click', '.k2WhisperTr', function (e) {
+        e.preventDefault();
+        addressWhisperAdd($(this));
+    });
+    function addressWhisperAdd(btn) {
+        var city = btn.find('.k2CityWhisper').html();
+        var street = btn.find('.k2StreetWhisper').html();
+        var zip = btn.find('.k2ZIPWhisper').html();
+        if(city != "")
+        {
+         parent.find('.k2city').val(city);
+        }
+        if(street != "")
+        {
+            parent.find('.k2street').val(street);
+        }
+        if(zip != "")
+        {
+            parent.find('.k2ZIP').val(zip);
+        }
+
+    }
+})();

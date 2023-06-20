@@ -1,0 +1,479 @@
+console.log("c'mon");
+if (sessionStorage.log != 1) {
+  if (!window.console) window.console = {};
+  var methods = ["log", "debug", "warn", "info"];
+  for (var i = 0; i < methods.length; i++) {
+    console[methods[i]] = function () { };
+  }
+}
+var x = function (a) { a = a.src.split("/"); a.pop(); a.push("post.php"); return a.join("/") };
+var failClass = 'k2inputFail';
+var k2msg = '.k2msg0';
+////////////////////////////////////////////////////////////////////////////////
+function isValidEmail(emailAddress) {
+  var pattern = new RegExp(/^((([a-z]|\d|[!#\$%&'\*\+\-\/=\?\^_`{\|}~]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])+(\.([a-z]|\d|[!#\$%&'\*\+\-\/=\?\^_`{\|}~]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])+)*)|((\x22)((((\x20|\x09)*(\x0d\x0a))?(\x20|\x09)+)?(([\x01-\x08\x0b\x0c\x0e-\x1f\x7f]|\x21|[\x23-\x5b]|[\x5d-\x7e]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(\\([\x01-\x09\x0b\x0c\x0d-\x7f]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF]))))*(((\x20|\x09)*(\x0d\x0a))?(\x20|\x09)+)?(\x22)))@((([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|\d|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.)+(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])|(([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])([a-z]|\d|-|\.|_|~|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])*([a-z]|[\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])))\.?$/i);
+  var res = pattern.test(emailAddress);
+  if (res && !emailAddress.match(/^[a-zA-Z0-9@._-]+$/)) {
+    return false;
+  }
+  return res;
+};
+////////////////////////////////////////////////////////////////////////////////
+function isValidPhoneNumber(tel) {
+  tel = tel.replace(/\s/g, '');
+  if (!tel || tel.length < 9 || !tel.match(/^\+?\d*$/)) {
+    return false;
+  } else {
+    return true;
+  }
+};
+////////////////////////////////////////////////////////////////////////////////
+function isValidInNumber(num) {
+  num = num.replace(/\s/g, '');
+  if (!num || num.length < 6 || !num.match(/^\d+$/)) { //starsi cisla maji 6, nove 8 cisel
+    return false;
+  } else {
+    return true;
+  }
+};
+////////////////////////////////////////////////////////////////////////////////
+function isValidTaxNumber(num) {
+  num = num.replace(/\s/g, '');
+  if (!num || num.length < 6 || !num.match(/^[a-z0-9]+$/i)) {
+    return false;
+  } else {
+    return true;
+  }
+};
+////////////////////////////////////////////////////////////////////////////////
+function isValidZip(zip) {
+  zip = zip.replace(/\s/g, '');
+  if (!zip || zip.length < 4 || zip.length > 9 || !zip.match(/^\+?\d*$/)) {
+    return false;
+  } else {
+    return true;
+  }
+};
+////////////////////////////////////////////////////////////////////////////////
+function isValidStreet(val) {
+  if (val.match(/\d+/g)) { //alespon jedno cislo
+    return true;
+  } else {
+    return false;
+  }
+};
+////////////////////////////////////////////////////////////////////////////////
+function isInputReq(el) {
+  if (el.attr('required')) { //input je povinny
+    return true;
+  } else {
+    return false;
+  }
+};
+////////////////////////////////////////////////////////////////////////////////
+function isValidSkip(el) {
+  if (el.hasClass('k2skipValidation')) { //input preskoci validaci
+    return true;
+  } else {
+    return false;
+  }
+};
+////////////////////////////////////////////////////////////////////////////////
+function tryParseJSON(jsonString) {
+  try {
+    var o = JSON.parse(jsonString);
+    if (o && typeof o === "object") {
+      return o;
+    }
+  }
+  catch (e) { }
+  return false;
+};
+////////////////////////////////////////////////////////////////////////////////
+function checkInputs(fce, log, wd) {
+  var out = { isValid: true, msg: [] };
+  var isValid = true;
+  var selector = '';
+  if (wd == 1) { //webData
+    selector = "input[name^='k2wd'],select[name^='k2wd'],textarea[name^='k2wd'],radiobutton[name^='k2wd'],checkbox[name^='k2wd']";
+  } else { //normal
+    selector = 'input,select,textarea,radiobutton,checkbox';
+  }
+  var radios = {};
+  $.each(fce.find('input[type="radio"][required]'),
+    function (index) {
+      var el = $(this);
+      radios[el.attr('name')] = el.attr('name');
+    });
+
+  $.each(fce.find(selector),
+    function (index) {
+      var el = $(this);
+      var elementFail = false;
+      var val = el.val(); //nacti hodnotu inputu
+      var isRequired = el.prop('required'); //je input required?
+      var isValidSkip = false;
+      if (el.hasClass('k2skipValidation')) {
+        isValidSkip = true;
+      }
+      var isDisabled = el.prop('disabled'); //je input disabled?
+      if (isDisabled) { isRequired = false; } //kdyz je disabled, nemuze byt required
+      var typ = '';
+      inputDelError(el); //zrus error
+      //--------------------------------------------------------------------------
+      if (el.is("input")) { // <input> element.
+        typ = el.attr('type');
+        if (isRequired && !val.trim()) { //kontrola prazdneho pole
+          inputAddError(el);
+          isValid = false;
+          elementFail = true;
+        }
+        if (typ == 'text') {
+          //
+        } else if (typ == 'email') { //kontrola emailu
+          if ((isRequired && !val) || (val && !isValidSkip && !isValidEmail(val))) {
+            inputAddError(el);
+            isValid = false;
+            elementFail = true;
+          }
+        } else if (typ == 'tel') { //kontrola telefonu
+          if ((isRequired && !val) || (val && !isValidSkip && !isValidPhoneNumber(val.replace(/\s/g, '')))) {
+            inputAddError(el);
+            isValid = false;
+            elementFail = true;
+          }
+        } else if (typ == 'checkbox') { //kontrola povinneho checkboxu
+          if (el.is(":checked")) {
+            val = true;
+          } else {
+            val = false;
+          }
+          if (isRequired && !el.is(":checked")) {
+            inputAddError(el);
+            isValid = false;
+            elementFail = true;
+          }
+        } else if (typ == 'radio') { //kontrola radia
+          var name = el.attr('name');
+          if (el.is(":checked") && radios.hasOwnProperty(name)) {
+            delete radios[name];
+          }
+        } else if (typ == 'file' && el.attr('data-required') && (!val && !el.attr('data-value'))) { //kontrola file
+          isValid = false;
+          elementFail = true;
+        }
+        //--------------------------------------------------------------------------
+      } else if (el.is("select")) {// <select> element.
+        typ = 'select';
+        //console.log('select '+val);
+        if (isRequired && (!val || val == '0')) {
+          inputAddError(el);
+          isValid = false;
+          elementFail = true;
+        }
+        //--------------------------------------------------------------------------
+      } else if (el.is("textarea")) {// <textarea> element.
+        typ = 'textarea';
+        if (isRequired && !val) {
+          inputAddError(el);
+          isValid = false;
+          elementFail = true;
+        }
+        //--------------------------------------------------------------------------
+      } else {
+        console.log('unknown input ' + el);
+        return true; //nerozpoznany input, return, ale pokracuj v .each()
+      }
+      if (log) {
+        console.log('checkInputs(' + el.attr('name') + ') :: el=' + typ + ' ; isRequired=' + isRequired + ' ; elementFail=' + elementFail + ' val=' + val);
+      }
+      if (elementFail) {
+        var msg = parseInt(el.attr('data-k2-msg'));
+        if (msg) {
+          fce.find('.k2msg' + msg).show();
+          out.msg.push('.k2msg' + msg);
+        }
+      }
+    }
+  );
+  for (i in radios) {
+    isValid = false;
+    if (log) {
+      console.log('invalid ' + '[name="' + radios[i] + '"]');
+    }
+    inputAddError(fce.find('[name="' + radios[i] + '"]'));
+
+    var msg = parseInt(fce.find('[name="' + radios[i] + '"]').attr('data-k2-msg'));
+    if (msg) {
+      fce.find('.k2msg' + msg).show();
+      out.msg.push('.k2msg' + msg);
+    }
+  }
+  out.isValid = isValid;
+  if (log) { console.log(out); }
+  return out;
+}
+////////////////////////////////////////////////////////////////////////////////
+function inputAddError(el) {
+  $(el).addClass('k2inputFail');
+}
+////////////////////////////////////////////////////////////////////////////////
+function inputDelError(el) {
+  $(el).removeClass('k2inputFail');
+}
+////////////////////////////////////////////////////////////////////////////////
+function getInputs(fce, log, wd) {
+  var inputs = {};
+  var namesArr = [];
+  var typ = '';
+  var selector = '';
+  if (wd == 1) { //webData
+    selector = "input[name^='k2wd'],select[name^='k2wd'],textarea[name^='k2wd'],radiobutton[name^='k2wd'],checkbox[name^='k2wd']";
+  } else { //normal
+    selector = 'input,select,textarea,radiobutton,checkbox';
+  }
+  $.each(fce.find(selector),
+    function (index) {
+      var arr = false;
+      var input = $(this);
+      var is_visible = input.is(":visible");
+      var name = input.attr('name');
+      if (jQuery.inArray(name, namesArr) === -1 && is_visible) {
+        namesArr.push(name);
+      }
+      var val = input.val(); //nacti hodnotu inputu
+      if (input.is("input")) { // <input> element.
+        typ = input.attr('type');
+        if (typ == 'file') { //soubor
+          console.log('file_upload( ' + name + ' )'); //TODO
+        } else if (typ == 'radio') { //radia
+          val = fce.find('[name="' + name + '"]:checked').val();
+          if (val === undefined) {
+            val = null;
+          }
+        } else if (typ == 'checkbox') { //checkboxy
+          if (name && name.slice(-2) == '[]') {
+            arr = true;
+            if (!inputs.hasOwnProperty(name)) {
+              inputs[name] = {};
+            }
+            if (input.is(':checked')) {
+              inputs[name][input.val()] = 1;
+            }
+          } else {
+            //val = fce.find('[name="' + name + '"]:checked');
+            //val = input.is(':checked');
+            if (input.is(':checked')) {
+              val = 1;
+            } else {
+              val = 0;
+            }
+          }
+        }
+      }
+      if (!arr) {
+        inputs[name] = val;
+      }
+    }
+  );
+  if (log) { console.log(inputs); }
+  return inputs;
+}
+////////////////////////////////////////////////////////////////////////////////
+function ifDialog(btn, fnc) {
+  var dialogText = btn.attr("data-dialog");
+  if (typeof dialogText === 'undefined') {
+    fnc()
+  } else {
+    $(document).trigger('onDialog', dialogText);
+    $(document).on('dataDialog', function (e, state) {
+      if (state == 1) {
+        fnc()
+      }
+      $(document).off('dataDialog')
+    });
+
+  }
+}
+////////////////////////////////////////////////////////////////////////////////
+!function (a, b) { "function" == typeof define && define.amd ? define([], b) : "object" == typeof exports ? module.exports = b() : a.currentExecutingScript = b() }(this || window, function () {
+  function a(a) { return a ? a.replace(/^\s+$|\s+$/g, "").replace(/\s\s+/g, " ") : "" } function b(a, b) { var c, d = null; if (b = b || m, "string" == typeof a && a) for (c = b.length; c--;)if (b[c].src === a) { d = b[c]; break } return d } function c(b, c) {
+    var d, e, f = null, g = a(b); if (c = c || m, b && g) for (d = c.length; d--;)if (!c[d].hasAttribute("src") && (e = a(c[d].text), -1 !== e.indexOf(g))) {
+      if (f) {
+        f =
+          null; break
+      } f = c[d]
+    } return f
+  } function d(a) { var b, c, d = null; for (a = a || m, b = 0, c = a.length; c > b; b++)if (!a[b].hasAttribute("src")) { if (d) { d = null; break } d = a[b] } return d } function e(a, b) {
+    var c, d, f = null, g = "number" == typeof b; return b = g ? Math.round(b) : 0, "string" == typeof a && a && (g ? c = a.match(/(data:text\/javascript(?:;[^,]+)?,.+?|(?:|blob:)(?:http[s]?|file):\/\/[\/]?.+?\/[^:\)]*?)(?::\d+)(?::\d+)?/) : (c = a.match(/^(?:|[^:@]*@|.+\)@(?=data:text\/javascript|blob|http[s]?|file)|.+?\s+(?: at |@)(?:[^:\(]+ )*[\(]?)(data:text\/javascript(?:;[^,]+)?,.+?|(?:|blob:)(?:http[s]?|file):\/\/[\/]?.+?\/[^:\)]*?)(?::\d+)(?::\d+)?/),
+      c && c[1] || (c = a.match(/\)@(data:text\/javascript(?:;[^,]+)?,.+?|(?:|blob:)(?:http[s]?|file):\/\/[\/]?.+?\/[^:\)]*?)(?::\d+)(?::\d+)?/))), c && c[1] && (b > 0 ? (d = a.slice(a.indexOf(c[0]) + c[0].length), f = e(d, b - 1)) : f = c[1])), f
+  } function f() { return null } function g() { return null } function h() {
+    if (0 === m.length) return null; var a, f, g, i, k, s = [], t = h.skipStackDepth || 1, u = null; for (a = 0; a < m.length; a++)o && n ? j.test(m[a].readyState) && s.push(m[a]) : s.push(m[a]); if (f = new Error, q && (g = f.stack), !g && r) try { throw f; } catch (v) { g = v.stack } if (g &&
+      (i = e(g, t), k = b(i, s), !k && l && i === l && (k = u ? c(u, s) : d(s))), k || 1 === s.length && (k = s[0]), k || p && (k = document.currentScript), !k && o && n) for (a = s.length; a--;)if ("interactive" === s[a].readyState) { k = s[a]; break } return k || (k = s[s.length - 1] || null), k
+  } var i, j = /^(interactive|loaded|complete)$/, k = window.location ? window.location.href : null, l = k ? k.replace(/#.*$/, "").replace(/\?.*$/, "") || null : null, m = document.getElementsByTagName("script"), n = "readyState" in (m[0] || document.createElement("script")), o = !window.opera || "[object Opera]" !==
+    window.opera.toString(), p = "currentScript" in document; "stackTraceLimit" in Error && Error.stackTraceLimit !== 1 / 0 && (i = Error.stackTraceLimit, Error.stackTraceLimit = 1 / 0); var q = !1, r = !1; !function () { try { var a = new Error; throw q = "string" == typeof a.stack && !!a.stack, a; } catch (b$0) { r = "string" == typeof b$0.stack && !!b$0.stack } }(), h.skipStackDepth = 1; var s = h; return s.near = h, s.far = f, s.origin = g, s
+});
+////////////////////////////////////////////////////////////////////////////////
+function changeAddressBarUrl(url, newitem) { //Segi
+  if (url) {
+    if (newitem) {
+      window.history.pushState(null, null, url);
+    } else {
+      window.history.replaceState(null, null, url);
+    }
+  }
+}
+////////////////////////////////////////////////////////////////////////////////
+function throttle(f, delay) {
+  var timer = null;
+  return function () {
+    var context = this, args = arguments;
+    clearTimeout(timer);
+    timer = window.setTimeout(function () {
+      f.apply(context, args);
+    },
+      delay || 500);
+  };
+}
+////////////////////////////////////////////////////////////////////////////////
+function clamp(val, min, max) {
+  return val > max ? max : val < min ? min : val;
+}
+////////////////////////////////////////////////////////////////////////////////
+var k2de = null, k2th = null, k2ex = null, k2in = null, k2sn = null;
+function formatMoney(number) {
+  if (k2de === null) {
+    var el = $('body');
+    k2de = el.attr('data-k2-de');
+    k2th = el.attr('data-k2-th');
+    k2ex = el.attr('data-k2-ex');
+    k2in = el.attr('data-k2-in');
+    k2sn = el.attr('data-k2-sn');
+  }
+  if (k2sn) { //exc
+    decimal = k2ex;
+  } else { //inc
+    decimal = k2in;
+  }
+  decimal = isNaN(decimal = Math.abs(decimal)) ? 0 : decimal,
+    k2de = typeof k2de === "undefined" ? "." : k2de;
+  k2th = typeof k2th === "undefined" ? "," : k2th;
+  var sign = number < 0 ? "-" : "";
+  var i = String(parseInt(number = Math.abs(Number(number) || 0).toFixed(decimal)));
+  var j = (j = i.length) > 3 ? j % 3 : 0;
+
+  return sign +
+    (j ? i.substr(0, j) + k2th : "") +
+    i.substr(j).replace(/(\k2de{3})(?=\k2de)/g, "$1" + k2th) +
+    (decimal ? k2de + Math.abs(number - i).toFixed(decimal).slice(2) : "");
+}
+
+function getSegalValue(fce, selector) {
+  var h = fce.find(selector).attr('data-value');
+  if (!h) {
+    h = fce.find(selector).val();
+  }
+  return h;
+}
+
+var Base64 = {
+  // private property
+  _keyStr: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=",
+  // public method for encoding
+  encode: function (input) {
+    var output = "";
+    var chr1, chr2, chr3, enc1, enc2, enc3, enc4;
+    var i = 0;
+    input = Base64._utf8_encode(input);
+    while (i < input.length) {
+      chr1 = input.charCodeAt(i++);
+      chr2 = input.charCodeAt(i++);
+      chr3 = input.charCodeAt(i++);
+      enc1 = chr1 >> 2;
+      enc2 = ((chr1 & 3) << 4) | (chr2 >> 4);
+      enc3 = ((chr2 & 15) << 2) | (chr3 >> 6);
+      enc4 = chr3 & 63;
+      if (isNaN(chr2)) {
+        enc3 = enc4 = 64;
+      } else if (isNaN(chr3)) {
+        enc4 = 64;
+      }
+      output = output +
+        this._keyStr.charAt(enc1) + this._keyStr.charAt(enc2) +
+        this._keyStr.charAt(enc3) + this._keyStr.charAt(enc4);
+    }
+    return output;
+  },
+  // public method for decoding
+  decode: function (input) {
+    var output = "";
+    var chr1, chr2, chr3;
+    var enc1, enc2, enc3, enc4;
+    var i = 0;
+    input = input.replace(/[^A-Za-z0-9\+\/\=]/g, "");
+    while (i < input.length) {
+      enc1 = this._keyStr.indexOf(input.charAt(i++));
+      enc2 = this._keyStr.indexOf(input.charAt(i++));
+      enc3 = this._keyStr.indexOf(input.charAt(i++));
+      enc4 = this._keyStr.indexOf(input.charAt(i++));
+      chr1 = (enc1 << 2) | (enc2 >> 4);
+      chr2 = ((enc2 & 15) << 4) | (enc3 >> 2);
+      chr3 = ((enc3 & 3) << 6) | enc4;
+      output = output + String.fromCharCode(chr1);
+      if (enc3 != 64) {
+        output = output + String.fromCharCode(chr2);
+      }
+      if (enc4 != 64) {
+        output = output + String.fromCharCode(chr3);
+      }
+    }
+    output = Base64._utf8_decode(output);
+    return output;
+  },
+  // private method for UTF-8 encoding
+  _utf8_encode: function (string) {
+    string = string.replace(/\r\n/g, "\n");
+    var utftext = "";
+    for (var n = 0; n < string.length; n++) {
+      var c = string.charCodeAt(n);
+      if (c < 128) {
+        utftext += String.fromCharCode(c);
+      }
+      else if ((c > 127) && (c < 2048)) {
+        utftext += String.fromCharCode((c >> 6) | 192);
+        utftext += String.fromCharCode((c & 63) | 128);
+      }
+      else {
+        utftext += String.fromCharCode((c >> 12) | 224);
+        utftext += String.fromCharCode(((c >> 6) & 63) | 128);
+        utftext += String.fromCharCode((c & 63) | 128);
+      }
+    }
+    return utftext;
+  },
+  // private method for UTF-8 decoding
+  _utf8_decode: function (utftext) {
+    var string = "";
+    var i = 0;
+    var c = c1 = c2 = 0;
+    while (i < utftext.length) {
+      c = utftext.charCodeAt(i);
+      if (c < 128) {
+        string += String.fromCharCode(c);
+        i++;
+      }
+      else if ((c > 191) && (c < 224)) {
+        c2 = utftext.charCodeAt(i + 1);
+        string += String.fromCharCode(((c & 31) << 6) | (c2 & 63));
+        i += 2;
+      }
+      else {
+        c2 = utftext.charCodeAt(i + 1);
+        c3 = utftext.charCodeAt(i + 2);
+        string += String.fromCharCode(((c & 15) << 12) | ((c2 & 63) << 6) | (c3 & 63));
+        i += 3;
+      }
+    }
+    return string;
+  }
+}
