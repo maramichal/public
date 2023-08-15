@@ -8,7 +8,7 @@ https://demo.k2.cz/CompanyWEB/ - nestojí za zmínku (nevyplněné data)
 https://www.kadernickezbozi.cz/  
 https://catalogue.koh-i-noor.cz/  
 
-Dále speciály pro B2B Eshopy (bez přístupu)
+Dále speciály pro B2B Eshopy (bez přístupu)  
 https://b2b.dermoesthetic.cz/  
 Xtline,  
 VorCZ,  
